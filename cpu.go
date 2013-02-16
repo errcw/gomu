@@ -18,7 +18,7 @@ type Cpu struct {
 	pageCrossed bool
 	branchTaken bool
 
-  Memory
+	Memory
 }
 
 const (
@@ -244,8 +244,8 @@ var instructions = map[uint8]Instruction{
 	0x01: {fn: ora, addr: indexedIndirect, cycles: 6},
 	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
 	// BIT
-	0x09: {fn: bit, addr: zeroPage, cycles: 3},
-	0x05: {fn: bit, addr: absolute, cycles: 4},
+	0x24: {fn: bit, addr: zeroPage, cycles: 3},
+	0x2c: {fn: bit, addr: absolute, cycles: 4},
 	// ADC
 	0x69: {fn: adc, addr: immediate, cycles: 2},
 	0x65: {fn: adc, addr: zeroPage, cycles: 3},
@@ -255,6 +255,15 @@ var instructions = map[uint8]Instruction{
 	0x79: {fn: adc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0x61: {fn: adc, addr: indexedIndirect, cycles: 6},
 	0x71: {fn: adc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+  // SBC
+	0xe9: {fn: sbc, addr: immediate, cycles: 2},
+	0xe5: {fn: sbc, addr: zeroPage, cycles: 3},
+	0xf5: {fn: sbc, addr: zeroPageX, cycles: 4},
+	0xed: {fn: sbc, addr: absolute, cycles: 4},
+	0xfd: {fn: sbc, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
+	0xf9: {fn: sbc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xe1: {fn: sbc, addr: indexedIndirect, cycles: 6},
+	0xf1: {fn: sbc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
@@ -274,7 +283,7 @@ func txs(cpu *Cpu, addr AddressFn) { cpu.sp = cpu.x }
 
 func pha(cpu *Cpu, addr AddressFn) { push(cpu, cpu.a) }
 func pla(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(pop(cpu)) }
-func php(cpu *Cpu, addr AddressFn) { push(cpu, cpu.flags | BreakFlag | UnusedFlag) }
+func php(cpu *Cpu, addr AddressFn) { push(cpu, cpu.flags|BreakFlag|UnusedFlag) }
 func plp(cpu *Cpu, addr AddressFn) { cpu.flags = pop(cpu) }
 
 func and(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a & cpu.Load(addr(cpu))) }
@@ -282,22 +291,34 @@ func eor(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a ^ cpu.Load(addr(cpu
 func ora(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a | cpu.Load(addr(cpu))) }
 
 func bit(cpu *Cpu, addr AddressFn) {
-  val := cpu.Load(addr(cpu))
-  cpu.setFlag(ZeroFlag, cpu.a & val == 0)
-  cpu.setFlag(OverflowFlag, val & OverflowFlag == OverflowFlag)
-  cpu.setFlag(NegativeFlag, val & NegativeFlag == NegativeFlag)
+	val := cpu.Load(addr(cpu))
+	cpu.setFlag(ZeroFlag, cpu.a&val == 0)
+	cpu.setFlag(OverflowFlag, val&OverflowFlag == OverflowFlag)
+	cpu.setFlag(NegativeFlag, val&NegativeFlag == NegativeFlag)
 }
 
 func adc(cpu *Cpu, addr AddressFn) {
-  val := uint16(cpu.Load(addr(cpu)))
-  a := uint16(cpu.a)
-  carry := uint16(cpu.flags & CarryFlag)
-  result := val + a + carry
+	v := uint16(cpu.Load(addr(cpu)))
+	a := uint16(cpu.a)
+	c := uint16(cpu.flags & CarryFlag)
+	r := a + v + c
 
-  cpu.a = uint8(result & 0xff)
-  cpu.setNZ(cpu.a)
-  cpu.setFlag(CarryFlag, result & 0x100 == 0x100)
-  cpu.setFlag(OverflowFlag, result & 0x100 == 0x100)
+	cpu.a = uint8(r & 0xff)
+	cpu.setNZ(cpu.a)
+	cpu.setFlag(CarryFlag, r&0x100 == 0x100)
+	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0) && ((a^r)&0x80 == 0x80)) // Same sign in, different sign out
+}
+
+func sbc(cpu *Cpu, addr AddressFn) {
+	v := cpu.Load(addr(cpu))
+	a := cpu.a
+	c := cpu.flags & CarryFlag
+	r := a - v - (1 - c)
+
+	cpu.a = r
+	cpu.setNZ(cpu.a)
+	cpu.setFlag(CarryFlag, r&0x80 == 0) // Borrow (1-c) set when result negative
+	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0x80) && ((v^r)&0x80 == 0)) // Diff sign in, same sign out
 }
 
 func push(cpu *Cpu, val uint8) {
