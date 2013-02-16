@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Cpu struct {
 	// Registers
 	a     uint8
@@ -15,6 +17,8 @@ type Cpu struct {
 	// Behavior of the current instruction
 	pageCrossed bool
 	branchTaken bool
+
+  Memory
 }
 
 const (
@@ -55,7 +59,7 @@ func (cpu *Cpu) Step() int {
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
 	if !ok {
-		panic("Unimplemented/illegal instruction")
+		panic(fmt.Sprintf("Unimplemented/illegal instruction %x", opcode))
 	}
 	instruction.fn(cpu, instruction.addr)
 
@@ -72,7 +76,7 @@ func (cpu *Cpu) Step() int {
 }
 
 func (cpu *Cpu) loadAndIncPc() uint8 {
-	val := Mem.Load(cpu.pc)
+	val := cpu.Load(cpu.pc)
 	cpu.pc++
 	return val
 }
@@ -112,22 +116,22 @@ func absoluteY(cpu *Cpu) uint16 {
 func indirect(cpu *Cpu) uint16 {
 	lowByteInd := cpu.loadAndIncPc()
 	highByteInd := cpu.loadAndIncPc()
-	lowByte := Mem.Load(makeWord(lowByteInd, highByteInd))
-	highByte := Mem.Load(makeWord(lowByteInd+1, highByteInd))
+	lowByte := cpu.Load(makeWord(lowByteInd, highByteInd))
+	highByte := cpu.Load(makeWord(lowByteInd+1, highByteInd))
 	return makeWord(lowByte, highByte)
 }
 
 func indexedIndirect(cpu *Cpu) uint16 {
 	addr := cpu.loadAndIncPc() + cpu.x
-	lowByte := Mem.Load(uint16(addr))
-	highByte := Mem.Load(uint16(addr + 1))
+	lowByte := cpu.Load(uint16(addr))
+	highByte := cpu.Load(uint16(addr + 1))
 	return makeWord(lowByte, highByte)
 }
 
 func indirectIndexed(cpu *Cpu) uint16 {
 	zeroPageAddr := cpu.loadAndIncPc()
-	lowByte := Mem.Load(uint16(zeroPageAddr))
-	highByte := Mem.Load(uint16(zeroPageAddr + 1))
+	lowByte := cpu.Load(uint16(zeroPageAddr))
+	highByte := cpu.Load(uint16(zeroPageAddr + 1))
 	return indexed(cpu, makeWord(lowByte, highByte), cpu.y)
 }
 
@@ -240,13 +244,13 @@ var instructions = map[uint8]Instruction{
 	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
 }
 
-func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(Mem.Load(addr(cpu))) }
-func ldx(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(Mem.Load(addr(cpu))) }
-func ldy(cpu *Cpu, addr AddressFn) { cpu.y = cpu.setNZ(Mem.Load(addr(cpu))) }
+func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
+func ldx(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(cpu.Load(addr(cpu))) }
+func ldy(cpu *Cpu, addr AddressFn) { cpu.y = cpu.setNZ(cpu.Load(addr(cpu))) }
 
-func sta(cpu *Cpu, addr AddressFn) { Mem.Store(addr(cpu), cpu.a) }
-func stx(cpu *Cpu, addr AddressFn) { Mem.Store(addr(cpu), cpu.x) }
-func sty(cpu *Cpu, addr AddressFn) { Mem.Store(addr(cpu), cpu.y) }
+func sta(cpu *Cpu, addr AddressFn) { cpu.Store(addr(cpu), cpu.a) }
+func stx(cpu *Cpu, addr AddressFn) { cpu.Store(addr(cpu), cpu.x) }
+func sty(cpu *Cpu, addr AddressFn) { cpu.Store(addr(cpu), cpu.y) }
 
 func tax(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(cpu.a) }
 func tay(cpu *Cpu, addr AddressFn) { cpu.y = cpu.setNZ(cpu.a) }
@@ -260,20 +264,20 @@ func php(cpu *Cpu, addr AddressFn) { push(cpu, cpu.flags) }
 func pla(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(pop(cpu)) }
 func plp(cpu *Cpu, addr AddressFn) { cpu.flags = pop(cpu) }
 
-func and(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a & Mem.Load(addr(cpu))) }
-func eor(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a ^ Mem.Load(addr(cpu))) }
-func ora(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a | Mem.Load(addr(cpu))) }
+func and(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a & cpu.Load(addr(cpu))) }
+func eor(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a ^ cpu.Load(addr(cpu))) }
+func ora(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a | cpu.Load(addr(cpu))) }
 
 func bit(cpu *Cpu, addr AddressFn) {}
 
 func push(cpu *Cpu, val uint8) {
-	Mem.Store(0x100+uint16(cpu.sp), val)
+	cpu.Store(0x100+uint16(cpu.sp), val)
 	cpu.sp--
 }
 
 func pop(cpu *Cpu) uint8 {
 	cpu.sp++
-	return Mem.Load(0x100 + uint16(cpu.sp))
+	return cpu.Load(0x100 + uint16(cpu.sp))
 }
 
 // Flags
