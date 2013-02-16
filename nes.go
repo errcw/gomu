@@ -3,5 +3,8 @@ package main
 import "fmt"
 
 func main() {
-	fmt.Println(Mem.LoadB(0))
+	a := uint8(0x80)
+	b := uint8(0xff)
+	fmt.Println(uint16(a + b))
+	fmt.Println(a + b)
 }
