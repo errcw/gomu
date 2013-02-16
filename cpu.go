@@ -27,6 +27,7 @@ const (
 	IrqFlag      = 1 << 2
 	DecimalFlag  = 1 << 3
 	BreakFlag    = 1 << 4
+	UnusedFlag   = 1 << 4
 	OverflowFlag = 1 << 6
 	NegativeFlag = 1 << 7
 )
@@ -210,10 +211,10 @@ var instructions = map[uint8]Instruction{
 	0x98: {fn: tya, addr: implied, cycles: 2},
 	0xba: {fn: tsx, addr: implied, cycles: 2},
 	0x9a: {fn: txs, addr: implied, cycles: 2},
-	// PHA, PHP, PLA, PLP
+	// PHA, PLA, PHP, PLP
 	0x48: {fn: pha, addr: implied, cycles: 3},
-	0x08: {fn: php, addr: implied, cycles: 3},
 	0x68: {fn: pla, addr: implied, cycles: 4},
+	0x08: {fn: php, addr: implied, cycles: 3},
 	0x28: {fn: plp, addr: implied, cycles: 4},
 	// AND
 	0x29: {fn: and, addr: immediate, cycles: 2},
@@ -242,6 +243,18 @@ var instructions = map[uint8]Instruction{
 	0x19: {fn: ora, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0x01: {fn: ora, addr: indexedIndirect, cycles: 6},
 	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	// BIT
+	0x09: {fn: bit, addr: zeroPage, cycles: 3},
+	0x05: {fn: bit, addr: absolute, cycles: 4},
+	// ADC
+	0x69: {fn: adc, addr: immediate, cycles: 2},
+	0x65: {fn: adc, addr: zeroPage, cycles: 3},
+	0x75: {fn: adc, addr: zeroPageX, cycles: 4},
+	0x6d: {fn: adc, addr: absolute, cycles: 4},
+	0x7d: {fn: adc, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
+	0x79: {fn: adc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0x61: {fn: adc, addr: indexedIndirect, cycles: 6},
+	0x71: {fn: adc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
@@ -260,15 +273,32 @@ func tsx(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(cpu.sp) }
 func txs(cpu *Cpu, addr AddressFn) { cpu.sp = cpu.x }
 
 func pha(cpu *Cpu, addr AddressFn) { push(cpu, cpu.a) }
-func php(cpu *Cpu, addr AddressFn) { push(cpu, cpu.flags) }
 func pla(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(pop(cpu)) }
+func php(cpu *Cpu, addr AddressFn) { push(cpu, cpu.flags | BreakFlag | UnusedFlag) }
 func plp(cpu *Cpu, addr AddressFn) { cpu.flags = pop(cpu) }
 
 func and(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a & cpu.Load(addr(cpu))) }
 func eor(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a ^ cpu.Load(addr(cpu))) }
 func ora(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.a | cpu.Load(addr(cpu))) }
 
-func bit(cpu *Cpu, addr AddressFn) {}
+func bit(cpu *Cpu, addr AddressFn) {
+  val := cpu.Load(addr(cpu))
+  cpu.setFlag(ZeroFlag, cpu.a & val == 0)
+  cpu.setFlag(OverflowFlag, val & OverflowFlag == OverflowFlag)
+  cpu.setFlag(NegativeFlag, val & NegativeFlag == NegativeFlag)
+}
+
+func adc(cpu *Cpu, addr AddressFn) {
+  val := uint16(cpu.Load(addr(cpu)))
+  a := uint16(cpu.a)
+  carry := uint16(cpu.flags & CarryFlag)
+  result := val + a + carry
+
+  cpu.a = uint8(result & 0xff)
+  cpu.setNZ(cpu.a)
+  cpu.setFlag(CarryFlag, result & 0x100 == 0x100)
+  cpu.setFlag(OverflowFlag, result & 0x100 == 0x100)
+}
 
 func push(cpu *Cpu, val uint8) {
 	cpu.Store(0x100+uint16(cpu.sp), val)
