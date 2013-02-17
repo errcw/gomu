@@ -82,6 +82,21 @@ func (cpu *Cpu) loadAndIncPc() uint8 {
 	return val
 }
 
+// Flags
+func (cpu *Cpu) setFlag(flag uint8, on bool) {
+	if on {
+		cpu.flags |= flag
+	} else {
+		cpu.flags &= ^flag
+	}
+}
+
+func (cpu *Cpu) setNZ(val uint8) uint8 {
+	cpu.setFlag(NegativeFlag, (val&0x80) != 0)
+	cpu.setFlag(ZeroFlag, val == 0)
+	return val
+}
+
 // Addressing modes
 func immediate(cpu *Cpu) uint16 {
 	cpu.pc++
@@ -168,7 +183,7 @@ type Instruction struct {
 }
 
 var instructions = map[uint8]Instruction{
-	// LDA
+  // LDA
 	0xa9: {fn: lda, addr: immediate, cycles: 2},
 	0xa5: {fn: lda, addr: zeroPage, cycles: 3},
 	0xb5: {fn: lda, addr: zeroPageX, cycles: 4},
@@ -177,19 +192,19 @@ var instructions = map[uint8]Instruction{
 	0xb9: {fn: lda, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0xa1: {fn: lda, addr: indexedIndirect, cycles: 6},
 	0xb1: {fn: lda, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
-	// LDX
+  // LDX
 	0xa2: {fn: ldx, addr: immediate, cycles: 2},
 	0xa6: {fn: ldx, addr: zeroPage, cycles: 3},
 	0xb6: {fn: ldx, addr: zeroPageY, cycles: 4},
 	0xae: {fn: ldx, addr: absolute, cycles: 4},
 	0xbe: {fn: ldx, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
-	// LDY
+  // LDY
 	0xa0: {fn: ldy, addr: immediate, cycles: 2},
 	0xa4: {fn: ldy, addr: zeroPage, cycles: 3},
 	0xb4: {fn: ldy, addr: zeroPageX, cycles: 4},
 	0xac: {fn: ldy, addr: absolute, cycles: 4},
 	0xbc: {fn: ldy, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	// STA
+  // STX
 	0x85: {fn: sta, addr: zeroPage, cycles: 3},
 	0x95: {fn: sta, addr: zeroPageX, cycles: 4},
 	0x8d: {fn: sta, addr: absolute, cycles: 4},
@@ -197,26 +212,27 @@ var instructions = map[uint8]Instruction{
 	0x99: {fn: sta, addr: absoluteY, cycles: 5},
 	0x81: {fn: sta, addr: indexedIndirect, cycles: 6},
 	0x91: {fn: sta, addr: indirectIndexed, cycles: 6},
-	// STX
+  // STX
 	0x86: {fn: stx, addr: zeroPage, cycles: 3},
 	0x96: {fn: stx, addr: zeroPageY, cycles: 4},
 	0x8e: {fn: stx, addr: absolute, cycles: 4},
+  // STY
 	0x84: {fn: sty, addr: zeroPage, cycles: 3},
 	0x94: {fn: sty, addr: zeroPageX, cycles: 4},
 	0x8c: {fn: sty, addr: absolute, cycles: 4},
-	// TAX, TAY, TXA, TYA, TSX, TXS
+  // TAX, TAY, TXA, TYA, TSX, TXS
 	0xaa: {fn: tax, addr: implied, cycles: 2},
 	0xa8: {fn: tay, addr: implied, cycles: 2},
 	0x8a: {fn: txa, addr: implied, cycles: 2},
 	0x98: {fn: tya, addr: implied, cycles: 2},
 	0xba: {fn: tsx, addr: implied, cycles: 2},
 	0x9a: {fn: txs, addr: implied, cycles: 2},
-	// PHA, PLA, PHP, PLP
+  // PHA, PLA, PHP, PLP
 	0x48: {fn: pha, addr: implied, cycles: 3},
 	0x68: {fn: pla, addr: implied, cycles: 4},
 	0x08: {fn: php, addr: implied, cycles: 3},
 	0x28: {fn: plp, addr: implied, cycles: 4},
-	// AND
+  // AND
 	0x29: {fn: and, addr: immediate, cycles: 2},
 	0x25: {fn: and, addr: zeroPage, cycles: 3},
 	0x35: {fn: and, addr: zeroPageX, cycles: 4},
@@ -225,7 +241,7 @@ var instructions = map[uint8]Instruction{
 	0x39: {fn: and, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0x21: {fn: and, addr: indexedIndirect, cycles: 6},
 	0x31: {fn: and, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
-	// EOR
+  // EOR
 	0x49: {fn: eor, addr: immediate, cycles: 2},
 	0x45: {fn: eor, addr: zeroPage, cycles: 3},
 	0x55: {fn: eor, addr: zeroPageX, cycles: 4},
@@ -234,7 +250,7 @@ var instructions = map[uint8]Instruction{
 	0x59: {fn: eor, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0x41: {fn: eor, addr: indexedIndirect, cycles: 6},
 	0x51: {fn: eor, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
-	// ORA
+  // ORA
 	0x09: {fn: ora, addr: immediate, cycles: 2},
 	0x05: {fn: ora, addr: zeroPage, cycles: 3},
 	0x15: {fn: ora, addr: zeroPageX, cycles: 4},
@@ -243,10 +259,10 @@ var instructions = map[uint8]Instruction{
 	0x19: {fn: ora, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0x01: {fn: ora, addr: indexedIndirect, cycles: 6},
 	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
-	// BIT
+  // BIT
 	0x24: {fn: bit, addr: zeroPage, cycles: 3},
 	0x2c: {fn: bit, addr: absolute, cycles: 4},
-	// ADC
+  // ADC
 	0x69: {fn: adc, addr: immediate, cycles: 2},
 	0x65: {fn: adc, addr: zeroPage, cycles: 3},
 	0x75: {fn: adc, addr: zeroPageX, cycles: 4},
@@ -264,6 +280,63 @@ var instructions = map[uint8]Instruction{
 	0xf9: {fn: sbc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
 	0xe1: {fn: sbc, addr: indexedIndirect, cycles: 6},
 	0xf1: {fn: sbc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+  // CMP
+	0xc9: {fn: cmp, addr: immediate, cycles: 2},
+	0xc5: {fn: cmp, addr: zeroPage, cycles: 3},
+	0xd5: {fn: cmp, addr: zeroPageX, cycles: 4},
+	0xcd: {fn: cmp, addr: absolute, cycles: 4},
+	0xdd: {fn: cmp, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
+	0xd9: {fn: cmp, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xc1: {fn: cmp, addr: indexedIndirect, cycles: 6},
+	0xd1: {fn: cmp, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+  // CPX
+	0xe0: {fn: cpx, addr: immediate, cycles: 2},
+	0xe4: {fn: cpx, addr: zeroPage, cycles: 3},
+	0xec: {fn: cpx, addr: absolute, cycles: 4},
+  // CPY
+	0xc0: {fn: cpy, addr: immediate, cycles: 2},
+	0xc4: {fn: cpy, addr: zeroPage, cycles: 3},
+	0xcc: {fn: cpy, addr: absolute, cycles: 4},
+  // INC
+	0xe6: {fn: inc, addr: zeroPage, cycles: 5},
+	0xf6: {fn: inc, addr: zeroPageX, cycles: 6},
+	0xee: {fn: inc, addr: absolute, cycles: 6},
+	0xfe: {fn: inc, addr: absoluteX, cycles: 7},
+  // INX, INY
+	0xe8: {fn: inx, addr: implied, cycles: 2},
+	0xc8: {fn: iny, addr: implied, cycles: 2},
+  // DEC
+	0xc6: {fn: dec, addr: zeroPage, cycles: 5},
+	0xd6: {fn: dec, addr: zeroPageX, cycles: 6},
+	0xce: {fn: dec, addr: absolute, cycles: 6},
+	0xde: {fn: dec, addr: absoluteX, cycles: 7},
+  // DEX, DEY
+	0xca: {fn: dex, addr: implied, cycles: 2},
+	0x88: {fn: dey, addr: implied, cycles: 2},
+  // ASL
+	0x0a: {fn: asla, addr: implied, cycles: 2},
+	0x06: {fn: asl, addr: zeroPage, cycles: 5},
+	0x16: {fn: asl, addr: zeroPageX, cycles: 6},
+	0x0e: {fn: asl, addr: absolute, cycles: 6},
+	0x1e: {fn: asl, addr: absoluteX, cycles: 7},
+  // LSR
+	0x4a: {fn: lsra, addr: implied, cycles: 2},
+	0x46: {fn: lsr, addr: zeroPage, cycles: 5},
+	0x56: {fn: lsr, addr: zeroPageX, cycles: 6},
+	0x4e: {fn: lsr, addr: absolute, cycles: 6},
+	0x5e: {fn: lsr, addr: absoluteX, cycles: 7},
+  // ROL
+	0x2a: {fn: rola, addr: implied, cycles: 2},
+	0x26: {fn: rol, addr: zeroPage, cycles: 5},
+	0x36: {fn: rol, addr: zeroPageX, cycles: 6},
+	0x2e: {fn: rol, addr: absolute, cycles: 6},
+	0x3e: {fn: rol, addr: absoluteX, cycles: 7},
+  // ROR
+	0x6a: {fn: rora, addr: implied, cycles: 2},
+	0x66: {fn: ror, addr: zeroPage, cycles: 5},
+	0x76: {fn: ror, addr: zeroPageX, cycles: 6},
+	0x6e: {fn: ror, addr: absolute, cycles: 6},
+	0x7e: {fn: ror, addr: absoluteX, cycles: 7},
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
@@ -321,6 +394,81 @@ func sbc(cpu *Cpu, addr AddressFn) {
 	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0x80) && ((v^r)&0x80 == 0)) // Diff sign in, same sign out
 }
 
+func cmp(cpu *Cpu, addr AddressFn) { compare(cpu, cpu.a, cpu.Load(addr(cpu))) }
+func cpx(cpu *Cpu, addr AddressFn) { compare(cpu, cpu.x, cpu.Load(addr(cpu))) }
+func cpy(cpu *Cpu, addr AddressFn) { compare(cpu, cpu.y, cpu.Load(addr(cpu))) }
+
+func inc(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a) + 1
+  cpu.Store(cpu.setNZ(v), a)
+}
+
+func inx(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(cpu.x + 1) }
+func iny(cpu *Cpu, addr AddressFn) { cpu.y = cpu.setNZ(cpu.y + 1) }
+
+func dec(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a) - 1
+  cpu.Store(cpu.setNZ(v), a)
+}
+
+func dex(cpu *Cpu, addr AddressFn) { cpu.x = cpu.setNZ(cpu.x - 1) }
+func dey(cpu *Cpu, addr AddressFn) { cpu.y = cpu.setNZ(cpu.y - 1) }
+
+func asla(cpu *Cpu, addr AddressFn) {
+  cpu.setFlag(CarryFlag, cpu.a & 0x80)
+  cpu.a = cpu.setNZ(cpu.a << 1)
+}
+
+func asl(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a)
+  cpu.setFlag(CarryFlag, v & 0x80)
+  cpu.Store(cpu.setNZ(v << 1), a)
+}
+
+func lsra(cpu *Cpu, addr AddressFn) {
+  cpu.setFlag(CarryFlag, cpu.a & 0x1)
+  cpu.a = cpu.setNZ(cpu.a >> 1)
+}
+
+func lsr(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a)
+  cpu.setFlag(CarryFlag, v & 0x1)
+  cpu.Store(cpu.setNZ(v >> 1), a)
+}
+
+func rola(cpu *Cpu, addr AddressFn) {
+  carry := cpu.flags & CarryFlag
+  cpu.setFlag(CarryFlag, cpu.a & 0x80)
+  cpu.a = cpu.setNZ((cpu.a << 1) | carry)
+}
+
+func rol(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a)
+  carry := cpu.flags & CarryFlag
+  cpu.setFlag(CarryFlag, v & 0x80)
+  cpu.Store(cpu.setNZ((v << 1) | carry), a)
+}
+
+func rora(cpu *Cpu, addr AddressFn) {
+  carry := (cpu.flags & CarryFlag) << 8
+  cpu.setFlag(CarryFlag, cpu.a & 0x1)
+  cpu.a = cpu.setNZ((cpu.a >> 1) | carry)
+}
+
+func ror(cpu *Cpu, addr AddressFn) {
+  a := addr(cpu)
+  v := cpu.Load(a)
+  carry := (cpu.flags & CarryFlag) << 8
+  cpu.setFlag(CarryFlag, v & 0x1)
+  cpu.Store(cpu.setNZ((v >> 1) | carry), a)
+}
+
+// Helpers
 func push(cpu *Cpu, val uint8) {
 	cpu.Store(0x100+uint16(cpu.sp), val)
 	cpu.sp--
@@ -331,21 +479,8 @@ func pop(cpu *Cpu) uint8 {
 	return cpu.Load(0x100 + uint16(cpu.sp))
 }
 
-// Flags
-func (cpu *Cpu) setFlag(flag uint8, on bool) {
-	if on {
-		cpu.flags |= flag
-	} else {
-		cpu.flags &= ^flag
-	}
-}
-
-func (cpu *Cpu) getFlag(flag uint8) bool {
-	return (cpu.flags & flag) != 0
-}
-
-func (cpu *Cpu) setNZ(val uint8) uint8 {
-	cpu.setFlag(NegativeFlag, (val&0x80) != 0)
-	cpu.setFlag(ZeroFlag, val == 0)
-	return val
+func compare(cpu *Cpu, reg uint8, val uint8) {
+  cpu.setFlag(CarryFlag, reg >= val)
+  cpu.setFlag(ZeroFlag, reg == val)
+  cpu.setFlag(NegativeFlag, reg < val)
 }
