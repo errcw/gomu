@@ -37,11 +37,11 @@ func TestCpuWithSimpleInstructions(t *testing.T) {
 func TestAddOverflow(t *testing.T) {
 	for i := 0; i <= 0xff; i++ {
 		for j := 0; j <= 0xff; j++ {
-      // Check if the signed result overflowed
+			// Check if the signed result overflowed
 			sr := int16(int8(i)) + int16(int8(j))
 			v := sr < -128 || sr > 127
 
-      // Check if the unsigned algorithm works
+			// Check if the unsigned algorithm works
 			ii := uint8(i)
 			jj := uint8(j)
 			r := ii + jj
