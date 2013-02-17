@@ -151,6 +151,16 @@ func indirectIndexed(cpu *Cpu) uint16 {
 	return indexed(cpu, makeWord(lowByte, highByte), cpu.y)
 }
 
+func relative(cpu *Cpu) uint16 {
+  base := cpu.pc
+  offset := int8(cpu.loadAndIncPc())
+  addr := uint16(int16(cpu.pc) + int16(offset))
+	if base&0xff00 != addr&0xff00 {
+		cpu.pageCrossed = true
+	}
+  return addr
+}
+
 func implied(cpu *Cpu) uint16 {
 	panic("Implied addressing should never be invoked")
 }
@@ -343,7 +353,15 @@ var instructions = map[uint8]Instruction{
 	// JSR, RTS
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
-  // BCC, BCS, BEQ, BMI, BNE, BPL, BVC, BVS
+  // BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
+	0x90: {fn: bcc, addr: relative, cycles: 2},
+	0xb0: {fn: bcs, addr: relative, cycles: 2},
+	0xd0: {fn: bne, addr: relative, cycles: 2},
+	0xf0: {fn: beq, addr: relative, cycles: 2},
+	0x10: {fn: bpl, addr: relative, cycles: 2},
+	0x30: {fn: bmi, addr: relative, cycles: 2},
+	0x50: {fn: bvc, addr: relative, cycles: 2},
+	0x70: {fn: bvs, addr: relative, cycles: 2},
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
@@ -492,22 +510,14 @@ func rts(cpu *Cpu, addr AddressFn) {
   cpu.pc = makeWord(lowByte, highByte) + 1
 }
 
-func bcc(cpu *Cpu, addr AddressFn) {
-}
-func bcs(cpu *Cpu, addr AddressFn) {
-}
-func beq(cpu *Cpu, addr AddressFn) {
-}
-func bmi(cpu *Cpu, addr AddressFn) {
-}
-func bne(cpu *Cpu, addr AddressFn) {
-}
-func bpl(cpu *Cpu, addr AddressFn) {
-}
-func bvc(cpu *Cpu, addr AddressFn) {
-}
-func bvs(cpu *Cpu, addr AddressFn) {
-}
+func bcc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & CarryFlag) == 0) }
+func bcs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & CarryFlag) == CarryFlag) }
+func bne(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & ZeroFlag) == 0) }
+func beq(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & ZeroFlag) == ZeroFlag) }
+func bpl(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & NegativeFlag) == 0) }
+func bmi(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & NegativeFlag) == NegativeFlag) }
+func bvc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & OverflowFlag) == 0) }
+func bvs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & OverflowFlag) == OverflowFlag) }
 
 // Helpers
 func push(cpu *Cpu, val uint8) {
@@ -524,4 +534,11 @@ func compare(cpu *Cpu, reg uint8, val uint8) {
 	cpu.setFlag(CarryFlag, reg >= val)
 	cpu.setFlag(ZeroFlag, reg == val)
 	cpu.setFlag(NegativeFlag, reg < val)
+}
+
+func branch(cpu *Cpu, addr AddressFn, cond bool) {
+  if cond {
+    cpu.pc = addr(cpu)
+    cpu.branchTaken = true
+  }
 }
