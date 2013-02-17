@@ -27,7 +27,7 @@ const (
 	IrqFlag      = 1 << 2
 	DecimalFlag  = 1 << 3
 	BreakFlag    = 1 << 4
-	UnusedFlag   = 1 << 4
+	UnusedFlag   = 1 << 5
 	OverflowFlag = 1 << 6
 	NegativeFlag = 1 << 7
 )
@@ -152,13 +152,13 @@ func indirectIndexed(cpu *Cpu) uint16 {
 }
 
 func relative(cpu *Cpu) uint16 {
-  base := cpu.pc
-  offset := int8(cpu.loadAndIncPc())
-  addr := uint16(int16(cpu.pc) + int16(offset))
+	base := cpu.pc
+	offset := int8(cpu.loadAndIncPc())
+	addr := uint16(int16(cpu.pc) + int16(offset))
 	if base&0xff00 != addr&0xff00 {
 		cpu.pageCrossed = true
 	}
-  return addr
+	return addr
 }
 
 func implied(cpu *Cpu) uint16 {
@@ -353,7 +353,7 @@ var instructions = map[uint8]Instruction{
 	// JSR, RTS
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
-  // BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
+	// BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
 	0x90: {fn: bcc, addr: relative, cycles: 2},
 	0xb0: {fn: bcs, addr: relative, cycles: 2},
 	0xd0: {fn: bne, addr: relative, cycles: 2},
@@ -362,6 +362,19 @@ var instructions = map[uint8]Instruction{
 	0x30: {fn: bmi, addr: relative, cycles: 2},
 	0x50: {fn: bvc, addr: relative, cycles: 2},
 	0x70: {fn: bvs, addr: relative, cycles: 2},
+	// CLC, CLD, CLI, CLV, SEC, SED, SEI
+	0x18: {fn: clc, addr: implied, cycles: 2},
+	0xd8: {fn: cld, addr: implied, cycles: 2},
+	0x58: {fn: cli, addr: implied, cycles: 2},
+	0xb8: {fn: clv, addr: implied, cycles: 2},
+	0x38: {fn: sec, addr: implied, cycles: 2},
+	0xf8: {fn: sed, addr: implied, cycles: 2},
+	0x78: {fn: sei, addr: implied, cycles: 2},
+	// BRK, RTI
+	0x00: {fn: brk, addr: implied, cycles: 7},
+	0x40: {fn: rti, addr: implied, cycles: 6},
+	// NOP
+	0xea: {fn: nop, addr: implied, cycles: 2},
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }
@@ -494,30 +507,48 @@ func ror(cpu *Cpu, addr AddressFn) {
 }
 
 func jmp(cpu *Cpu, addr AddressFn) {
-  cpu.pc = addr(cpu)
+	cpu.pc = addr(cpu)
 }
 
 func jsr(cpu *Cpu, addr AddressFn) {
-  ret := cpu.pc - 1
-  push(cpu, uint8(ret >> 8))
-  push(cpu, uint8(ret & 0xff))
-  cpu.pc = addr(cpu)
+	ret := cpu.pc - 1
+	push(cpu, uint8(ret>>8))
+	push(cpu, uint8(ret&0xff))
+	cpu.pc = addr(cpu)
 }
 
 func rts(cpu *Cpu, addr AddressFn) {
-  lowByte := pop(cpu)
-  highByte := pop(cpu)
-  cpu.pc = makeWord(lowByte, highByte) + 1
+	lowByte := pop(cpu)
+	highByte := pop(cpu)
+	cpu.pc = makeWord(lowByte, highByte) + 1
 }
 
-func bcc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & CarryFlag) == 0) }
-func bcs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & CarryFlag) == CarryFlag) }
-func bne(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & ZeroFlag) == 0) }
-func beq(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & ZeroFlag) == ZeroFlag) }
-func bpl(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & NegativeFlag) == 0) }
-func bmi(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & NegativeFlag) == NegativeFlag) }
-func bvc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & OverflowFlag) == 0) }
-func bvs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags & OverflowFlag) == OverflowFlag) }
+func bcc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&CarryFlag) == 0) }
+func bcs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&CarryFlag) == CarryFlag) }
+func bne(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&ZeroFlag) == 0) }
+func beq(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&ZeroFlag) == ZeroFlag) }
+func bpl(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&NegativeFlag) == 0) }
+func bmi(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&NegativeFlag) == NegativeFlag) }
+func bvc(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&OverflowFlag) == 0) }
+func bvs(cpu *Cpu, addr AddressFn) { branch(cpu, addr, (cpu.flags&OverflowFlag) == OverflowFlag) }
+
+func clc(cpu *Cpu, addr AddressFn) { cpu.setFlag(CarryFlag, false) }
+func cld(cpu *Cpu, addr AddressFn) { cpu.setFlag(DecimalFlag, false) }
+func cli(cpu *Cpu, addr AddressFn) { cpu.setFlag(IrqFlag, false) }
+func clv(cpu *Cpu, addr AddressFn) { cpu.setFlag(OverflowFlag, false) }
+func sec(cpu *Cpu, addr AddressFn) { cpu.setFlag(CarryFlag, true) }
+func sed(cpu *Cpu, addr AddressFn) { cpu.setFlag(DecimalFlag, true) }
+func sei(cpu *Cpu, addr AddressFn) { cpu.setFlag(IrqFlag, true) }
+
+func brk(cpu *Cpu, addr AddressFn) {
+
+}
+
+func rti(cpu *Cpu, addr AddressFn) {
+
+}
+
+func nop(cpu *Cpu, addr AddressFn) {}
 
 // Helpers
 func push(cpu *Cpu, val uint8) {
@@ -537,8 +568,8 @@ func compare(cpu *Cpu, reg uint8, val uint8) {
 }
 
 func branch(cpu *Cpu, addr AddressFn, cond bool) {
-  if cond {
-    cpu.pc = addr(cpu)
-    cpu.branchTaken = true
-  }
+	if cond {
+		cpu.pc = addr(cpu)
+		cpu.branchTaken = true
+	}
 }
