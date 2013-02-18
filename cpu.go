@@ -87,7 +87,7 @@ func (cpu *Cpu) setFlag(flag uint8, on bool) {
 	if on {
 		cpu.flags |= flag
 	} else {
-		cpu.flags &= ^flag
+		cpu.flags &^= flag
 	}
 }
 
@@ -171,10 +171,6 @@ func indexed(cpu *Cpu, base uint16, index uint8) uint16 {
 		cpu.pageCrossed = true
 	}
 	return indexed
-}
-
-func makeWord(lowb, highb uint8) uint16 {
-	return uint16(highb)<<8 | uint16(lowb)
 }
 
 // Instructions
@@ -541,11 +537,22 @@ func sed(cpu *Cpu, addr AddressFn) { cpu.setFlag(DecimalFlag, true) }
 func sei(cpu *Cpu, addr AddressFn) { cpu.setFlag(IrqFlag, true) }
 
 func brk(cpu *Cpu, addr AddressFn) {
+	push(cpu, uint8(cpu.pc>>8))
+	push(cpu, uint8(cpu.pc&0xff))
+  push(cpu, cpu.flags|BreakFlag|UnusedFlag)
 
+  cpu.setFlag(IrqFlag, true)
+
+	lowIrqAddr := cpu.Load(IrqVector)
+	highIrqAddr := cpu.Load(IrqVector + 1)
+	cpu.pc = makeWord(lowIrqAddr, highIrqAddr) + 1
 }
 
 func rti(cpu *Cpu, addr AddressFn) {
-
+  flags := pop(cpu)
+  lowPcAddr := pop(cpu)
+  highPcAddr := pop(cpu)
+  cpu.pc = makeWord(lowPcAddr, highPcAddr)
 }
 
 func nop(cpu *Cpu, addr AddressFn) {}
@@ -572,4 +579,8 @@ func branch(cpu *Cpu, addr AddressFn, cond bool) {
 		cpu.pc = addr(cpu)
 		cpu.branchTaken = true
 	}
+}
+
+func makeWord(lowb, highb uint8) uint16 {
+	return uint16(highb)<<8 | uint16(lowb)
 }
