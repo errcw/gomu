@@ -539,9 +539,9 @@ func sei(cpu *Cpu, addr AddressFn) { cpu.setFlag(IrqFlag, true) }
 func brk(cpu *Cpu, addr AddressFn) {
 	push(cpu, uint8(cpu.pc>>8))
 	push(cpu, uint8(cpu.pc&0xff))
-  push(cpu, cpu.flags|BreakFlag|UnusedFlag)
+	push(cpu, cpu.flags|BreakFlag|UnusedFlag)
 
-  cpu.setFlag(IrqFlag, true)
+	cpu.setFlag(IrqFlag, true)
 
 	lowIrqAddr := cpu.Load(IrqVector)
 	highIrqAddr := cpu.Load(IrqVector + 1)
@@ -549,10 +549,10 @@ func brk(cpu *Cpu, addr AddressFn) {
 }
 
 func rti(cpu *Cpu, addr AddressFn) {
-  flags := pop(cpu)
-  lowPcAddr := pop(cpu)
-  highPcAddr := pop(cpu)
-  cpu.pc = makeWord(lowPcAddr, highPcAddr)
+	cpu.flags = pop(cpu)
+	lowPcAddr := pop(cpu)
+	highPcAddr := pop(cpu)
+	cpu.pc = makeWord(lowPcAddr, highPcAddr)
 }
 
 func nop(cpu *Cpu, addr AddressFn) {}
