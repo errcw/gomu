@@ -4,12 +4,21 @@ import "fmt"
 import "testing"
 
 func TestCpuRoms(t *testing.T) {
-  r, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
-  if err != nil {
-    t.Fatalf("Failed to load ROM: %v", err)
-    return
-  }
-  fmt.Println(r)
+	rom, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
+	if err != nil {
+		t.Fatalf("Failed to load ROM: %v", err)
+		return
+	}
+
+	cpu := NewCpu()
+	cpu.Memory.mapper = NewMapper(rom)
+	cpu.Reset()
+
+	for {
+		cpu.Step()
+	}
+
+	fmt.Println(rom)
 }
 
 func TestCpuWithSimpleInstructions(t *testing.T) {

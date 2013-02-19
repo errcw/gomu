@@ -1,11 +1,9 @@
 package main
 
 type Memory struct {
-	// 2KB of RAM
-	ram [0x800]uint8
+	ram    [0x800]uint8 // 2KB of RAM
+	mapper Mapper
 }
-
-var Mem Memory
 
 func (mem *Memory) Load(addr uint16) uint8 {
 	switch {
@@ -18,7 +16,7 @@ func (mem *Memory) Load(addr uint16) uint8 {
 	case addr < 0x4018:
 		return 0 // Input (+ more APU, 0x4017 frame counter control?)
 	}
-	return 0 // Mapper
+	return mem.mapper.Load(addr)
 }
 
 func (mem *Memory) Store(addr uint16, val uint8) {
@@ -32,6 +30,6 @@ func (mem *Memory) Store(addr uint16, val uint8) {
 	case addr < 0x4018:
 		// Input (+ more APU, 0x4017 frame counter control?)
 	default:
-		// Mapper
+		mem.mapper.Store(addr, val)
 	}
 }

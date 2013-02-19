@@ -11,14 +11,15 @@ type Cpu struct {
 	pc    uint16
 	flags uint8
 
-	// Pending interrupt
-	interrupt int
-
 	// Behavior of the current instruction
 	pageCrossed bool
 	branchTaken bool
 
+	// Memory map
 	Memory
+
+  verbose bool
+  count int
 }
 
 const (
@@ -38,29 +39,28 @@ const (
 	IrqVector   = 0xfffe
 )
 
-const (
-	InterruptNone = iota
-	InterruptIrq
-	InterruptNmi
-	InterruptReset
-)
+func NewCpu() *Cpu {
+	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, pc: 0xc000, flags: IrqFlag | UnusedFlag}
+}
 
 func (cpu *Cpu) Reset() {
-	cpu.a = 0
-	cpu.x = 0
-	cpu.y = 0
-	cpu.sp = 0xfd
-	cpu.pc = 0xc000
-	cpu.flags = IrqFlag|UnusedFlag
-
-	cpu.interrupt = InterruptNone
+	lowByte := cpu.Load(ResetVector)
+	highByte := cpu.Load(ResetVector + 1)
+	cpu.pc = makeWord(lowByte, highByte)
 }
 
 func (cpu *Cpu) Step() int {
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
+  if opcode == 0x60 {
+    cpu.verbose = true
+  }
+  if cpu.verbose {
+    fmt.Printf("Executing %x at %x\n", opcode, cpu.pc - 1)
+    cpu.count++
+  }
 	if !ok {
-		panic(fmt.Sprintf("Unimplemented/illegal instruction %x", opcode))
+		panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
 	}
 	instruction.fn(cpu, instruction.addr)
 
@@ -153,7 +153,8 @@ func indirectIndexed(cpu *Cpu) uint16 {
 
 func relative(cpu *Cpu) uint16 {
 	base := cpu.pc
-	offset := int8(cpu.loadAndIncPc())
+	raw := cpu.loadAndIncPc()
+	offset := int8(raw)
 	addr := uint16(int16(cpu.pc) + int16(offset))
 	if base&0xff00 != addr&0xff00 {
 		cpu.pageCrossed = true
@@ -350,7 +351,7 @@ var instructions = map[uint8]Instruction{
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
 	// BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
-  0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
 	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
 	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
 	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
@@ -507,10 +508,11 @@ func jmp(cpu *Cpu, addr AddressFn) {
 }
 
 func jsr(cpu *Cpu, addr AddressFn) {
+  jmpAddr := addr(cpu) // Read the addr bytes first to move the PC
 	ret := cpu.pc - 1
 	push(cpu, uint8(ret>>8))
 	push(cpu, uint8(ret&0xff))
-	cpu.pc = addr(cpu)
+	cpu.pc = jmpAddr
 }
 
 func rts(cpu *Cpu, addr AddressFn) {
@@ -575,8 +577,9 @@ func compare(cpu *Cpu, reg uint8, val uint8) {
 }
 
 func branch(cpu *Cpu, addr AddressFn, cond bool) {
+  a := addr(cpu) // Always read the address to move the PC
 	if cond {
-		cpu.pc = addr(cpu)
+    cpu.pc = a
 		cpu.branchTaken = true
 	}
 }
