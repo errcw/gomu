@@ -50,8 +50,8 @@ func (cpu *Cpu) Reset() {
 	cpu.x = 0
 	cpu.y = 0
 	cpu.sp = 0xfd
-	cpu.pc = 0x34
-	cpu.flags = 0
+	cpu.pc = 0xc000
+	cpu.flags = IrqFlag|UnusedFlag
 
 	cpu.interrupt = InterruptNone
 }
@@ -350,14 +350,14 @@ var instructions = map[uint8]Instruction{
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
 	// BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
-	0x90: {fn: bcc, addr: relative, cycles: 2},
-	0xb0: {fn: bcs, addr: relative, cycles: 2},
-	0xd0: {fn: bne, addr: relative, cycles: 2},
-	0xf0: {fn: beq, addr: relative, cycles: 2},
-	0x10: {fn: bpl, addr: relative, cycles: 2},
-	0x30: {fn: bmi, addr: relative, cycles: 2},
-	0x50: {fn: bvc, addr: relative, cycles: 2},
-	0x70: {fn: bvs, addr: relative, cycles: 2},
+  0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x10: {fn: bpl, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x30: {fn: bmi, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x50: {fn: bvc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x70: {fn: bvs, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
 	// CLC, CLD, CLI, CLV, SEC, SED, SEI
 	0x18: {fn: clc, addr: implied, cycles: 2},
 	0xd8: {fn: cld, addr: implied, cycles: 2},

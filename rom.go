@@ -34,7 +34,7 @@ func LoadRom(filename string) (*Rom, error) {
     return nil, err
   }
 
-  if header.Magic[0] != 'N' || header.Magic[1] != 'E' || header.Magic[2] != 'S' {
+  if string(header.Magic[0:3]) != "NES" {
     return nil, errors.New("ines header corrupted")
   }
 
