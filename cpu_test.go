@@ -1,6 +1,16 @@
 package main
 
+import "fmt"
 import "testing"
+
+func TestCpuRoms(t *testing.T) {
+  r, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
+  if err != nil {
+    t.Fatalf("Failed to load ROM: %v", err)
+    return
+  }
+  fmt.Println(r)
+}
 
 func TestCpuWithSimpleInstructions(t *testing.T) {
 	cpu := new(Cpu)
