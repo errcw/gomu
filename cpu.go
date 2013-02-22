@@ -18,8 +18,8 @@ type Cpu struct {
 	// Memory map
 	Memory
 
-  verbose bool
-  count int
+	verbose bool
+	count   int
 }
 
 const (
@@ -52,15 +52,14 @@ func (cpu *Cpu) Reset() {
 func (cpu *Cpu) Step() int {
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
-  if opcode == 0x60 {
-    cpu.verbose = true
-  }
-  if cpu.verbose {
-    fmt.Printf("Executing %x at %x\n", opcode, cpu.pc - 1)
-    cpu.count++
-  }
+	if cpu.verbose {
+		fmt.Printf("Executing %x at %x\n", opcode, cpu.pc-1)
+		cpu.count++
+	}
 	if !ok {
-		panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
+		//panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
+		fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1)
+    return 0
 	}
 	instruction.fn(cpu, instruction.addr)
 
@@ -508,7 +507,7 @@ func jmp(cpu *Cpu, addr AddressFn) {
 }
 
 func jsr(cpu *Cpu, addr AddressFn) {
-  jmpAddr := addr(cpu) // Read the addr bytes first to move the PC
+	jmpAddr := addr(cpu) // Read the addr bytes first to move the PC
 	ret := cpu.pc - 1
 	push(cpu, uint8(ret>>8))
 	push(cpu, uint8(ret&0xff))
@@ -577,9 +576,9 @@ func compare(cpu *Cpu, reg uint8, val uint8) {
 }
 
 func branch(cpu *Cpu, addr AddressFn, cond bool) {
-  a := addr(cpu) // Always read the address to move the PC
+	a := addr(cpu) // Always read the address to move the PC
 	if cond {
-    cpu.pc = a
+		cpu.pc = a
 		cpu.branchTaken = true
 	}
 }

@@ -7,15 +7,15 @@ import (
 )
 
 type INesHeader struct {
-	Magic      [4]byte
-	PrgRomSize byte
-	ChrRomSize byte
-	Flags6     byte
-	Flags7     byte
-	PrgRamSize byte
-	Flags9     byte
-	Flags10    byte
-	Zero       [5]byte
+	Magic          [4]byte
+	PrgRom16kBanks byte
+	ChrRom8kBanks  byte
+	Flags6         byte
+	Flags7         byte
+	PrgRam8kBanks  byte
+	Flags9         byte
+	Flags10        byte
+	Zero           [5]byte
 }
 
 type Rom struct {
@@ -41,8 +41,8 @@ func LoadRom(filename string) (*Rom, error) {
 		return nil, errors.New("ines header corrupted")
 	}
 
-	prgBytes := int(header.PrgRomSize) * 16384
-	chrBytes := int(header.ChrRomSize) * 8192
+	prgBytes := int(header.PrgRom16kBanks) * 16 * 1024
+	chrBytes := int(header.ChrRom8kBanks) * 8 * 1024
 
 	rom := &Rom{*header, make([]byte, prgBytes), make([]byte, chrBytes)}
 
