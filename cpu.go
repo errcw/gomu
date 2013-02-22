@@ -58,6 +58,7 @@ func (cpu *Cpu) Step() int {
 	}
 	if !ok {
 		//panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
+    immediate(cpu)
 		fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1)
 		return 0
 	}
@@ -586,9 +587,8 @@ func pop(cpu *Cpu) uint8 {
 }
 
 func compare(cpu *Cpu, reg uint8, val uint8) {
-	cpu.setFlag(CarryFlag, reg >= val)
-	cpu.setFlag(ZeroFlag, reg == val)
-	cpu.setFlag(NegativeFlag, reg < val)
+  cpu.setFlag(CarryFlag, reg >= val)
+  cpu.setNZ(reg - val)
 }
 
 func branch(cpu *Cpu, addr AddressFn, cond bool) {

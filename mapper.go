@@ -37,6 +37,5 @@ func (nrom *Nrom) Store(addr uint16, val uint8) {
 	if addr < 0x6000 || addr >= 0x8000 {
 		panic(fmt.Sprintf("Cannot write %x to nrom at %x", val, addr))
 	}
-	fmt.Printf("Writing %x (%q) to %x\n", val, val, addr)
 	nrom.prgRam[addr-0x6000] = val
 }
