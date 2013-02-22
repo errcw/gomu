@@ -14,18 +14,18 @@ func TestCpuRoms(t *testing.T) {
 	cpu.Memory.mapper = NewMapper(rom)
 	cpu.Reset()
 
-  ram := cpu.Memory.mapper.(*Nrom).prgRam
+	ram := cpu.Memory.mapper.(*Nrom).prgRam
 
 	for {
 		cpu.Step()
-    if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] < 0x80 {
-      break
-    }
+		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] < 0x80 {
+			break
+		}
 	}
 
-  end := 4
-  for ; ram[end] != 0; end++ {
-  }
-  t.Errorf("Ret: %v", ram[0])
-  t.Errorf("Test output:%s", string(ram[4:end]))
+	end := 4
+	for ; ram[end] != 0; end++ {
+	}
+	t.Errorf("Ret: %v", ram[0])
+	t.Errorf("Test output:%s", string(ram[4:end]))
 }

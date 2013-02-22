@@ -59,7 +59,7 @@ func (cpu *Cpu) Step() int {
 	if !ok {
 		//panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
 		fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1)
-    return 0
+		return 0
 	}
 	instruction.fn(cpu, instruction.addr)
 
@@ -475,31 +475,47 @@ func lsr(cpu *Cpu, addr AddressFn) {
 }
 
 func rola(cpu *Cpu, addr AddressFn) {
-	carry := cpu.flags & CarryFlag
+	carry := cpu.flags&CarryFlag == CarryFlag
 	cpu.setFlag(CarryFlag, cpu.a&0x80 == 0x80)
-	cpu.a = cpu.setNZ((cpu.a << 1) | carry)
+	result := cpu.a << 1
+	if carry {
+		result |= 1
+	}
+	cpu.a = cpu.setNZ(result)
 }
 
 func rol(cpu *Cpu, addr AddressFn) {
 	a := addr(cpu)
 	v := cpu.Load(a)
-	carry := cpu.flags & CarryFlag
+	carry := cpu.flags&CarryFlag == CarryFlag
 	cpu.setFlag(CarryFlag, v&0x80 == 0x80)
-	cpu.Store(a, cpu.setNZ((v<<1)|carry))
+	result := v << 1
+	if carry {
+		result |= 1
+	}
+	cpu.Store(a, cpu.setNZ(result))
 }
 
 func rora(cpu *Cpu, addr AddressFn) {
-	carry := (cpu.flags & CarryFlag) << 8
+	carry := cpu.flags&CarryFlag == CarryFlag
 	cpu.setFlag(CarryFlag, cpu.a&1 == 1)
-	cpu.a = cpu.setNZ((cpu.a >> 1) | carry)
+	result := cpu.a >> 1
+	if carry {
+		result |= 0x80
+	}
+	cpu.a = cpu.setNZ(result)
 }
 
 func ror(cpu *Cpu, addr AddressFn) {
 	a := addr(cpu)
 	v := cpu.Load(a)
-	carry := (cpu.flags & CarryFlag) << 8
+	carry := cpu.flags&CarryFlag == CarryFlag
 	cpu.setFlag(CarryFlag, v&1 == 1)
-	cpu.Store(a, cpu.setNZ((v>>1)|carry))
+	result := v >> 1
+	if carry {
+		result |= 0x80
+	}
+	cpu.Store(a, cpu.setNZ(result))
 }
 
 func jmp(cpu *Cpu, addr AddressFn) {
