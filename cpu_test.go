@@ -3,7 +3,8 @@ package main
 import "testing"
 
 func TestCpuRoms(t *testing.T) {
-	rom, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
+	//rom, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
+	rom, err := LoadRom("testdata/instr_test-v3/rom_singles/03-zero_page.nes")
 	if err != nil {
 		t.Fatalf("Failed to load ROM: %v", err)
 		return
@@ -22,13 +23,13 @@ func TestCpuRoms(t *testing.T) {
 		}
 	}
 
-  returnCode := ram[0]
-  if returnCode > 0 {
-    t.Errorf("Return: %v", returnCode)
-  }
+	returnCode := ram[0]
+	if returnCode > 0 {
+		t.Errorf("Return: %v", returnCode)
+	}
 
-  end := 4
-  for ; ram[end] != 0; end++ {
-  }
-  t.Logf("Test output: %s", string(ram[4:end]))
+	end := 4
+	for ; ram[end] != 0; end++ {
+	}
+	t.Logf("Test output: %s", string(ram[4:end]))
 }

@@ -58,7 +58,7 @@ func (cpu *Cpu) Step() int {
 	}
 	if !ok {
 		//panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
-    immediate(cpu)
+		immediate(cpu)
 		fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1)
 		return 0
 	}
@@ -411,22 +411,22 @@ func adc(cpu *Cpu, addr AddressFn) {
 	c := uint16(cpu.flags & CarryFlag)
 	r := a + v + c
 
-	cpu.a = uint8(r & 0xff)
+	cpu.a = uint8(r)
 	cpu.setNZ(cpu.a)
 	cpu.setFlag(CarryFlag, r&0x100 == 0x100)
 	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0) && ((a^r)&0x80 == 0x80)) // Same sign in, different sign out
 }
 
 func sbc(cpu *Cpu, addr AddressFn) {
-	v := cpu.Load(addr(cpu))
-	a := cpu.a
-	c := cpu.flags & CarryFlag
+	v := uint16(cpu.Load(addr(cpu)))
+	a := uint16(cpu.a)
+	c := uint16(cpu.flags & CarryFlag)
 	r := a - v - (1 - c)
 
-	cpu.a = r
+	cpu.a = uint8(r)
 	cpu.setNZ(cpu.a)
-	cpu.setFlag(CarryFlag, r&0x80 == 0)                                  // Borrow (1-c) set when result negative
-	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0x80) && ((v^r)&0x80 == 0)) // Diff sign in, same sign out
+	cpu.setFlag(CarryFlag, r&0x100 == 0)                                    // Carry is opposite of borrow
+	cpu.setFlag(OverflowFlag, ((a^v)&0x80 == 0x80) && ((a^r)&0x80 == 0x80)) // Diff sign in, diff sign out
 }
 
 func cmp(cpu *Cpu, addr AddressFn) { compare(cpu, cpu.a, cpu.Load(addr(cpu))) }
@@ -587,8 +587,8 @@ func pop(cpu *Cpu) uint8 {
 }
 
 func compare(cpu *Cpu, reg uint8, val uint8) {
-  cpu.setFlag(CarryFlag, reg >= val)
-  cpu.setNZ(reg - val)
+	cpu.setFlag(CarryFlag, reg >= val)
+	cpu.setNZ(reg - val)
 }
 
 func branch(cpu *Cpu, addr AddressFn, cond bool) {
