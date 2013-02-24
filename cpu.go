@@ -52,14 +52,15 @@ func (cpu *Cpu) Reset() {
 func (cpu *Cpu) Step() int {
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
-	if cpu.verbose {
+	if opcode == 0x00 {
+		cpu.verbose = true
+	}
+	if cpu.verbose && cpu.count < 50 {
 		fmt.Printf("Executing %x at %x\n", opcode, cpu.pc-1)
 		cpu.count++
 	}
 	if !ok {
-		//panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
-		immediate(cpu)
-		fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1)
+		panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
 		return 0
 	}
 	instruction.fn(cpu, instruction.addr)
@@ -555,6 +556,7 @@ func sed(cpu *Cpu, addr AddressFn) { cpu.setFlag(DecimalFlag, true) }
 func sei(cpu *Cpu, addr AddressFn) { cpu.setFlag(IrqFlag, true) }
 
 func brk(cpu *Cpu, addr AddressFn) {
+	cpu.pc++
 	push(cpu, uint8(cpu.pc>>8))
 	push(cpu, uint8(cpu.pc&0xff))
 	push(cpu, cpu.flags|BreakFlag|UnusedFlag)
@@ -563,7 +565,7 @@ func brk(cpu *Cpu, addr AddressFn) {
 
 	lowIrqAddr := cpu.Load(IrqVector)
 	highIrqAddr := cpu.Load(IrqVector + 1)
-	cpu.pc = makeWord(lowIrqAddr, highIrqAddr) + 1
+	cpu.pc = makeWord(lowIrqAddr, highIrqAddr)
 }
 
 func rti(cpu *Cpu, addr AddressFn) {

@@ -3,8 +3,7 @@ package main
 import "testing"
 
 func TestCpuRoms(t *testing.T) {
-	//rom, err := LoadRom("testdata/instr_test-v3/rom_singles/02-immediate.nes")
-	rom, err := LoadRom("testdata/instr_test-v3/rom_singles/03-zero_page.nes")
+	rom, err := LoadRom("testdata/instr_test-v3/rom_singles/14-brk.nes")
 	if err != nil {
 		t.Fatalf("Failed to load ROM: %v", err)
 		return
