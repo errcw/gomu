@@ -17,7 +17,7 @@ func TestCpuRoms(t *testing.T) {
 
 	for {
 		cpu.Step()
-		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] < 0x80 {
+		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] != 0x80 {
 			break
 		}
 	}

@@ -116,7 +116,6 @@ func (mmc1 *Mmc1) Load(addr uint16) uint8 {
 		}
 	}
 
-	fmt.Printf("Loading %x from bank %x and addr %x\n", bank, addr, mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)])
 	return mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)]
 }
 

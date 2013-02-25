@@ -17,9 +17,6 @@ type Cpu struct {
 
 	// Memory map
 	Memory
-
-	verbose bool
-	count   int
 }
 
 const (
@@ -40,7 +37,7 @@ const (
 )
 
 func NewCpu() *Cpu {
-	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, pc: 0xc000, flags: IrqFlag | UnusedFlag, verbose: true}
+	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, pc: 0xc000, flags: IrqFlag | UnusedFlag}
 }
 
 func (cpu *Cpu) Reset() {
@@ -52,16 +49,8 @@ func (cpu *Cpu) Reset() {
 func (cpu *Cpu) Step() int {
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
-	if cpu.verbose {
-		//fmt.Printf("Executing %x at %x\n", opcode, cpu.pc-1)
-		cpu.count++
-		if cpu.count >= 500000 {
-			panic("stopping")
-		}
-	}
 	if !ok {
 		panic(fmt.Sprintf("Unimplemented/illegal instruction %x at %x", opcode, cpu.pc-1))
-		return 0
 	}
 	instruction.fn(cpu, instruction.addr)
 
