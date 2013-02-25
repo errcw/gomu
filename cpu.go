@@ -55,7 +55,7 @@ func (cpu *Cpu) Step() int {
 	instruction.fn(cpu, instruction.addr)
 
 	cycles := instruction.cycles
-	if cpu.pageCrossed && instruction.hasPageCyclePenalty {
+	if cpu.pageCrossed && instruction.hasPageCrossPenalty {
 		cycles++
 		cpu.pageCrossed = false
 	}
@@ -175,7 +175,7 @@ type Instruction struct {
 	// Number of cycles taken by this instruction, including extra cycles if the as
 	// address crosses a page boundary or a branch is taken
 	cycles                int
-	hasPageCyclePenalty   bool
+	hasPageCrossPenalty   bool
 	hasBranchCyclePenalty bool
 }
 
@@ -185,22 +185,22 @@ var instructions = map[uint8]Instruction{
 	0xa5: {fn: lda, addr: zeroPage, cycles: 3},
 	0xb5: {fn: lda, addr: zeroPageX, cycles: 4},
 	0xad: {fn: lda, addr: absolute, cycles: 4},
-	0xbd: {fn: lda, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0xb9: {fn: lda, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xbd: {fn: lda, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0xb9: {fn: lda, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0xa1: {fn: lda, addr: indexedIndirect, cycles: 6},
-	0xb1: {fn: lda, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0xb1: {fn: lda, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// LDX
 	0xa2: {fn: ldx, addr: immediate, cycles: 2},
 	0xa6: {fn: ldx, addr: zeroPage, cycles: 3},
 	0xb6: {fn: ldx, addr: zeroPageY, cycles: 4},
 	0xae: {fn: ldx, addr: absolute, cycles: 4},
-	0xbe: {fn: ldx, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xbe: {fn: ldx, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	// LDY
 	0xa0: {fn: ldy, addr: immediate, cycles: 2},
 	0xa4: {fn: ldy, addr: zeroPage, cycles: 3},
 	0xb4: {fn: ldy, addr: zeroPageX, cycles: 4},
 	0xac: {fn: ldy, addr: absolute, cycles: 4},
-	0xbc: {fn: ldy, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
+	0xbc: {fn: ldy, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
 	// STX
 	0x85: {fn: sta, addr: zeroPage, cycles: 3},
 	0x95: {fn: sta, addr: zeroPageX, cycles: 4},
@@ -234,28 +234,28 @@ var instructions = map[uint8]Instruction{
 	0x25: {fn: and, addr: zeroPage, cycles: 3},
 	0x35: {fn: and, addr: zeroPageX, cycles: 4},
 	0x2d: {fn: and, addr: absolute, cycles: 4},
-	0x3d: {fn: and, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0x39: {fn: and, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0x3d: {fn: and, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0x39: {fn: and, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0x21: {fn: and, addr: indexedIndirect, cycles: 6},
-	0x31: {fn: and, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0x31: {fn: and, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// EOR
 	0x49: {fn: eor, addr: immediate, cycles: 2},
 	0x45: {fn: eor, addr: zeroPage, cycles: 3},
 	0x55: {fn: eor, addr: zeroPageX, cycles: 4},
 	0x4d: {fn: eor, addr: absolute, cycles: 4},
-	0x5d: {fn: eor, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0x59: {fn: eor, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0x5d: {fn: eor, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0x59: {fn: eor, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0x41: {fn: eor, addr: indexedIndirect, cycles: 6},
-	0x51: {fn: eor, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0x51: {fn: eor, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// ORA
 	0x09: {fn: ora, addr: immediate, cycles: 2},
 	0x05: {fn: ora, addr: zeroPage, cycles: 3},
 	0x15: {fn: ora, addr: zeroPageX, cycles: 4},
 	0x0d: {fn: ora, addr: absolute, cycles: 4},
-	0x1d: {fn: ora, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0x19: {fn: ora, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0x1d: {fn: ora, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0x19: {fn: ora, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0x01: {fn: ora, addr: indexedIndirect, cycles: 6},
-	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0x11: {fn: ora, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// BIT
 	0x24: {fn: bit, addr: zeroPage, cycles: 3},
 	0x2c: {fn: bit, addr: absolute, cycles: 4},
@@ -264,28 +264,28 @@ var instructions = map[uint8]Instruction{
 	0x65: {fn: adc, addr: zeroPage, cycles: 3},
 	0x75: {fn: adc, addr: zeroPageX, cycles: 4},
 	0x6d: {fn: adc, addr: absolute, cycles: 4},
-	0x7d: {fn: adc, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0x79: {fn: adc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0x7d: {fn: adc, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0x79: {fn: adc, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0x61: {fn: adc, addr: indexedIndirect, cycles: 6},
-	0x71: {fn: adc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0x71: {fn: adc, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// SBC
 	0xe9: {fn: sbc, addr: immediate, cycles: 2},
 	0xe5: {fn: sbc, addr: zeroPage, cycles: 3},
 	0xf5: {fn: sbc, addr: zeroPageX, cycles: 4},
 	0xed: {fn: sbc, addr: absolute, cycles: 4},
-	0xfd: {fn: sbc, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0xf9: {fn: sbc, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xfd: {fn: sbc, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0xf9: {fn: sbc, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0xe1: {fn: sbc, addr: indexedIndirect, cycles: 6},
-	0xf1: {fn: sbc, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0xf1: {fn: sbc, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// CMP
 	0xc9: {fn: cmp, addr: immediate, cycles: 2},
 	0xc5: {fn: cmp, addr: zeroPage, cycles: 3},
 	0xd5: {fn: cmp, addr: zeroPageX, cycles: 4},
 	0xcd: {fn: cmp, addr: absolute, cycles: 4},
-	0xdd: {fn: cmp, addr: absoluteX, cycles: 4, hasPageCyclePenalty: true},
-	0xd9: {fn: cmp, addr: absoluteY, cycles: 4, hasPageCyclePenalty: true},
+	0xdd: {fn: cmp, addr: absoluteX, cycles: 4, hasPageCrossPenalty: true},
+	0xd9: {fn: cmp, addr: absoluteY, cycles: 4, hasPageCrossPenalty: true},
 	0xc1: {fn: cmp, addr: indexedIndirect, cycles: 6},
-	0xd1: {fn: cmp, addr: indirectIndexed, cycles: 5, hasPageCyclePenalty: true},
+	0xd1: {fn: cmp, addr: indirectIndexed, cycles: 5, hasPageCrossPenalty: true},
 	// CPX
 	0xe0: {fn: cpx, addr: immediate, cycles: 2},
 	0xe4: {fn: cpx, addr: zeroPage, cycles: 3},
@@ -341,14 +341,14 @@ var instructions = map[uint8]Instruction{
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
 	// BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
-	0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0x10: {fn: bpl, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0x30: {fn: bmi, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0x50: {fn: bvc, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
-	0x70: {fn: bvs, addr: relative, cycles: 2, hasPageCyclePenalty: true, hasBranchCyclePenalty: true},
+	0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0x10: {fn: bpl, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0x30: {fn: bmi, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0x50: {fn: bvc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0x70: {fn: bvs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
 	// CLC, CLD, CLI, CLV, SEC, SED, SEI
 	0x18: {fn: clc, addr: implied, cycles: 2},
 	0xd8: {fn: cld, addr: implied, cycles: 2},

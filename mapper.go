@@ -89,7 +89,6 @@ func NewMmc1(rom *Rom) *Mmc1 {
 
 func (mmc1 *Mmc1) Load(addr uint16) uint8 {
 	if addr <= 0x7fff {
-		fmt.Printf("Loading RAM from %x\n", addr)
 		return mmc1.prgRam[addr-0x6000]
 	}
 
