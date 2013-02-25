@@ -37,7 +37,7 @@ const (
 )
 
 func NewCpu() *Cpu {
-	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, pc: 0xc000, flags: IrqFlag | UnusedFlag}
+	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, flags: IrqFlag}
 }
 
 func (cpu *Cpu) Reset() {

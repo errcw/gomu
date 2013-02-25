@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-func TestCpuRoms(t *testing.T) {
+func TestCpuRom(t *testing.T) {
 	rom, err := LoadRom("testdata/instr_test-v3/official_only.nes")
 	if err != nil {
 		t.Fatalf("Failed to load ROM: %v", err)
