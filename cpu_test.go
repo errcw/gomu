@@ -13,7 +13,7 @@ func TestCpuRoms(t *testing.T) {
 	cpu.Memory.mapper = NewMapper(rom)
 	cpu.Reset()
 
-	ram := cpu.Memory.mapper.(*Nrom).prgRam
+	ram := cpu.Memory.mapper.(*Mmc1).prgRam
 
 	for {
 		cpu.Step()

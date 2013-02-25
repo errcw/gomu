@@ -10,9 +10,9 @@ type Mapper interface {
 func NewMapper(rom *Rom) Mapper {
 	switch rom.Mapper() {
 	case 0:
-		return &Nrom{rom, make([]uint8, 8192)}
+		return NewNrom(rom)
 	case 1:
-		return &Mmc1{rom: rom, prgRam: make([]uint8, 8192), chrRam: make([]uint8, 8192)}
+		return NewMmc1(rom)
 	}
 	panic(fmt.Sprintf("Unimplemented mapper %v", rom.Mapper()))
 }
@@ -21,6 +21,12 @@ func NewMapper(rom *Rom) Mapper {
 type Nrom struct {
 	rom    *Rom
 	prgRam []uint8 // 8 KB RAM
+}
+
+func NewNrom(rom *Rom) *Nrom {
+	return &Nrom{
+		rom:    rom,
+		prgRam: make([]uint8, 8192)}
 }
 
 func (nrom *Nrom) Load(addr uint16) uint8 {
@@ -67,27 +73,80 @@ const (
 )
 
 const (
-	PrgSize32k = iota
-	PrgSize16k
+	MirrorOneScreenLower = iota
+	MirrorOneScreenUpper
+	MirrorVertical
+	MirrorHorizontal
 )
 
-// TODO other ctrl consts
+func NewMmc1(rom *Rom) *Mmc1 {
+	return &Mmc1{
+		rom:    rom,
+		ctrl:   0xc, // Default 0x8000 PRG switchable
+		prgRam: make([]uint8, 8192),
+		chrRam: make([]uint8, 8192)}
+}
 
 func (mmc1 *Mmc1) Load(addr uint16) uint8 {
-	return 0
+	if addr <= 0x7fff {
+		fmt.Printf("Loading RAM from %x\n", addr)
+		return mmc1.prgRam[addr-0x6000]
+	}
+
+	bankMode := (mmc1.ctrl >> 2) & 3
+	var bank uint8
+	switch {
+	case addr <= 0xbfff: // First slot 0x8000-0xbfff
+		switch bankMode {
+		case 0, 1: // Switch 32k at 0x8000
+			bank = mmc1.prgBank & 0xfe
+		case 2: // Fix first bank at 0x8000
+			bank = 0
+		case 3: // Switch bank at 0x8000
+			bank = mmc1.prgBank
+		}
+	case addr <= 0xffff: // Second slot 0xc000-0xffff
+		switch bankMode {
+		case 0, 1: // Switch 32k at 0x8000
+			bank = (mmc1.prgBank & 0xfe) | 1
+		case 2: // Switch bank at 0xc000
+			bank = mmc1.prgBank
+		case 3: // Fix last bank at 0xc000
+			bank = mmc1.rom.header.PrgRom16kBanks - 1
+		}
+	}
+
+	fmt.Printf("Loading %x from bank %x and addr %x\n", bank, addr, mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)])
+	return mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)]
 }
 
 func (mmc1 *Mmc1) Store(addr uint16, val uint8) {
-	if addr < 0x8000 {
-		// TODO PRG RAM
+	if addr >= 0x6000 && addr < 0x8000 {
+		mmc1.prgRam[addr-0x6000] = val
 		return
 	}
 
 	if val&0x80 == 0x80 {
 		mmc1.regAccumulator = 0
 		mmc1.regWriteCount = 0
-		mmc1.ctrl |= 3 << 2
+		mmc1.ctrl |= 0xc
+		return
 	}
 
-	// TODO accum
+	mmc1.regAccumulator |= (val & 1) << mmc1.regWriteCount
+	mmc1.regWriteCount++
+	if mmc1.regWriteCount == 5 {
+		switch {
+		case addr <= 0x9fff:
+			mmc1.ctrl = mmc1.regAccumulator
+		case addr <= 0xbfff:
+			mmc1.chrBank0 = mmc1.regAccumulator
+		case addr <= 0xdfff:
+			mmc1.chrBank1 = mmc1.regAccumulator
+		case addr <= 0xffff:
+			mmc1.prgBank = mmc1.regAccumulator
+		}
+		mmc1.regAccumulator = 0
+		mmc1.regWriteCount = 0
+	}
 }
