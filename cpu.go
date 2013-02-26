@@ -15,7 +15,6 @@ type Cpu struct {
 	pageCrossed bool
 	branchTaken bool
 
-	// Memory map
 	*MemoryMap
 }
 
