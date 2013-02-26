@@ -3,8 +3,28 @@ package main
 import "fmt"
 
 func main() {
-	a := uint8(0x80)
-	b := uint8(0xff)
-	fmt.Println(uint16(a + b))
-	fmt.Println(a + b)
+	rom, err := LoadRom("testdata/instr_test-v3/official_only.nes")
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load ROM: %v", err))
+	}
+
+	ppu := Ppu{}
+	apu := Apu{}
+	mem := &MemoryMap{ppu: ppu, apu: apu, mapper: NewMapper(rom)}
+	cpu := NewCpu(mem)
+	cpu.Reset()
+
+	for {
+		cycles := cpu.Step()
+
+		ppuResult := ppu.Step(cycles)
+		switch ppuResult {
+		case PpuVblankNmi:
+			cpu.Nmi()
+		case PpuNewFrame:
+			// blt
+		}
+
+		apu.Step(cycles)
+	}
 }

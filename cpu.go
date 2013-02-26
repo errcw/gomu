@@ -16,7 +16,7 @@ type Cpu struct {
 	branchTaken bool
 
 	// Memory map
-	Memory
+	*MemoryMap
 }
 
 const (
@@ -36,14 +36,24 @@ const (
 	IrqVector   = 0xfffe
 )
 
-func NewCpu() *Cpu {
-	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, flags: IrqFlag}
+func NewCpu(memmap *MemoryMap) *Cpu {
+	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, flags: IrqFlag, MemoryMap: memmap}
 }
 
 func (cpu *Cpu) Reset() {
 	lowByte := cpu.Load(ResetVector)
 	highByte := cpu.Load(ResetVector + 1)
 	cpu.pc = makeWord(lowByte, highByte)
+}
+
+func (cpu *Cpu) Nmi() {
+	push(cpu, uint8(cpu.pc>>8))
+	push(cpu, uint8(cpu.pc&0xff))
+	push(cpu, cpu.flags)
+
+	lowNmiAddr := cpu.Load(NmiVector)
+	highNmiAddr := cpu.Load(NmiVector + 1)
+	cpu.pc = makeWord(lowNmiAddr, highNmiAddr)
 }
 
 func (cpu *Cpu) Step() int {

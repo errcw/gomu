@@ -9,11 +9,11 @@ func TestCpuRom(t *testing.T) {
 		return
 	}
 
-	cpu := NewCpu()
-	cpu.Memory.mapper = NewMapper(rom)
+	mem := &MemoryMap{mapper: NewMapper(rom)}
+	cpu := NewCpu(mem)
 	cpu.Reset()
 
-	ram := cpu.Memory.mapper.(*Mmc1).prgRam
+	ram := cpu.MemoryMap.mapper.(*Mmc1).prgRam
 
 	for {
 		cpu.Step()
