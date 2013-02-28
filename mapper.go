@@ -3,8 +3,11 @@ package main
 import "fmt"
 
 type Mapper interface {
+	// TODO LoadPrg/LoadChr?
 	Load(addr uint16) uint8
 	Store(addr uint16, val uint8)
+	LoadVram(addr uint16) uint8
+	StoreVram(addr uint16, val uint8)
 }
 
 func NewMapper(rom *Rom) Mapper {
@@ -34,10 +37,10 @@ func (nrom *Nrom) Load(addr uint16) uint8 {
 		return nrom.prgRam[addr-0x6000]
 	}
 	if nrom.rom.header.PrgRom16kBanks > 1 {
-		// Map both 16k blocks of PRG ROM
+		// Map both banks
 		return nrom.rom.prg[addr&0x7fff]
 	}
-	// Mirror 16k PRG ROM at 0x8000 and 0xc000
+	// Mirror single bank at 0x8000 and 0xc000
 	return nrom.rom.prg[addr&0x3fff]
 }
 
@@ -46,6 +49,14 @@ func (nrom *Nrom) Store(addr uint16, val uint8) {
 		panic(fmt.Sprintf("Cannot write %x to nrom at %x", val, addr))
 	}
 	nrom.prgRam[addr-0x6000] = val
+}
+
+func (nrom *Nrom) LoadVram(addr uint16) uint8 {
+	return nrom.rom.chr[addr]
+}
+
+func (nrom *Nrom) StoreVram(addr uint16, val uint8) {
+	panic("Nrom cannot write to CHR ROM")
 }
 
 // MMC1 / SxROM
@@ -66,11 +77,6 @@ type Mmc1 struct {
 	regAccumulator uint8
 	regWriteCount  uint8
 }
-
-const (
-	ChrMode8k = iota
-	ChrMode4k
-)
 
 const (
 	MirrorOneScreenLower = iota
@@ -147,4 +153,29 @@ func (mmc1 *Mmc1) Store(addr uint16, val uint8) {
 		mmc1.regAccumulator = 0
 		mmc1.regWriteCount = 0
 	}
+}
+
+func (mmc1 *Mmc1) LoadVram(addr uint16) uint8 {
+	if mmc1.rom.header.ChrRom8kBanks == 0 {
+		return mmc1.chrRam[addr]
+	}
+
+	var bank uint8
+	switch {
+	case addr < 0x1000:
+		bank = mmc1.chrBank0
+	case addr < 0x2000:
+		switch bankMode := (mmc1.ctrl >> 4) & 1; bankMode {
+		case 0: // 8k
+			bank = mmc1.chrBank0 + 1
+		case 1: // 4k
+			bank = mmc1.chrBank1
+		}
+	}
+
+	return mmc1.rom.chr[(uint16(bank)*0x1000)|(addr&0xfff)]
+}
+
+func (mmc1 *Mmc1) StoreVram(addr uint16, val uint8) {
+	mmc1.chrRam[addr] = val
 }
