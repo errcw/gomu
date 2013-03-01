@@ -4,10 +4,10 @@ import "fmt"
 
 type Mapper interface {
 	// TODO LoadPrg/LoadChr?
-	Load(addr uint16) uint8
-	Store(addr uint16, val uint8)
-	LoadVram(addr uint16) uint8
-	StoreVram(addr uint16, val uint8)
+	LoadPrg(addr uint16) uint8
+	StorePrg(addr uint16, val uint8)
+	LoadChr(addr uint16) uint8
+	StoreChr(addr uint16, val uint8)
 }
 
 func NewMapper(rom *Rom) Mapper {
@@ -32,7 +32,7 @@ func NewNrom(rom *Rom) *Nrom {
 		prgRam: make([]uint8, 8192)}
 }
 
-func (nrom *Nrom) Load(addr uint16) uint8 {
+func (nrom *Nrom) LoadPrg(addr uint16) uint8 {
 	if addr < 0x8000 {
 		return nrom.prgRam[addr-0x6000]
 	}
@@ -44,18 +44,18 @@ func (nrom *Nrom) Load(addr uint16) uint8 {
 	return nrom.rom.prg[addr&0x3fff]
 }
 
-func (nrom *Nrom) Store(addr uint16, val uint8) {
+func (nrom *Nrom) StorePrg(addr uint16, val uint8) {
 	if addr < 0x6000 || addr >= 0x8000 {
 		panic(fmt.Sprintf("Cannot write %x to nrom at %x", val, addr))
 	}
 	nrom.prgRam[addr-0x6000] = val
 }
 
-func (nrom *Nrom) LoadVram(addr uint16) uint8 {
+func (nrom *Nrom) LoadChr(addr uint16) uint8 {
 	return nrom.rom.chr[addr]
 }
 
-func (nrom *Nrom) StoreVram(addr uint16, val uint8) {
+func (nrom *Nrom) StoreChr(addr uint16, val uint8) {
 	panic("Nrom cannot write to CHR ROM")
 }
 
@@ -93,7 +93,7 @@ func NewMmc1(rom *Rom) *Mmc1 {
 		chrRam: make([]uint8, 8192)}
 }
 
-func (mmc1 *Mmc1) Load(addr uint16) uint8 {
+func (mmc1 *Mmc1) LoadPrg(addr uint16) uint8 {
 	if addr <= 0x7fff {
 		return mmc1.prgRam[addr-0x6000]
 	}
@@ -124,7 +124,7 @@ func (mmc1 *Mmc1) Load(addr uint16) uint8 {
 	return mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)]
 }
 
-func (mmc1 *Mmc1) Store(addr uint16, val uint8) {
+func (mmc1 *Mmc1) StorePrg(addr uint16, val uint8) {
 	if addr >= 0x6000 && addr < 0x8000 {
 		mmc1.prgRam[addr-0x6000] = val
 		return
@@ -155,7 +155,7 @@ func (mmc1 *Mmc1) Store(addr uint16, val uint8) {
 	}
 }
 
-func (mmc1 *Mmc1) LoadVram(addr uint16) uint8 {
+func (mmc1 *Mmc1) LoadChr(addr uint16) uint8 {
 	if mmc1.rom.header.ChrRom8kBanks == 0 {
 		return mmc1.chrRam[addr]
 	}
@@ -176,6 +176,6 @@ func (mmc1 *Mmc1) LoadVram(addr uint16) uint8 {
 	return mmc1.rom.chr[(uint16(bank)*0x1000)|(addr&0xfff)]
 }
 
-func (mmc1 *Mmc1) StoreVram(addr uint16, val uint8) {
+func (mmc1 *Mmc1) StoreChr(addr uint16, val uint8) {
 	mmc1.chrRam[addr] = val
 }

@@ -19,7 +19,7 @@ func (mem *MemoryMap) Load(addr uint16) uint8 {
 	case addr < 0x4018:
 		return mem.input.Load(addr)
 	}
-	return mem.mapper.Load(addr)
+	return mem.mapper.LoadPrg(addr)
 }
 
 func (mem *MemoryMap) Store(addr uint16, val uint8) {
@@ -33,6 +33,6 @@ func (mem *MemoryMap) Store(addr uint16, val uint8) {
 	case addr <= 0x4018:
 		mem.apu.Store(addr, val)
 	default:
-		mem.mapper.Store(addr, val)
+		mem.mapper.StorePrg(addr, val)
 	}
 }

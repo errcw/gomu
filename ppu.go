@@ -36,7 +36,7 @@ type VramMemoryMap struct {
 func (mem *VramMemoryMap) Load(addr uint16) uint8 {
 	switch {
 	case addr < 0x2000:
-		return mem.mapper.LoadVram(addr)
+		return mem.mapper.LoadChr(addr)
 	case addr < 0x3f00:
 		return mem.nametables[addr&0x7ff]
 	case addr < 0x4000:
@@ -48,7 +48,7 @@ func (mem *VramMemoryMap) Load(addr uint16) uint8 {
 func (mem *VramMemoryMap) Store(addr uint16, val uint8) {
 	switch {
 	case addr < 0x2000:
-		mem.mapper.StoreVram(addr, val)
+		mem.mapper.StoreChr(addr, val)
 	case addr < 0x3f00:
 		mem.nametables[addr&0x7ff] = val
 	case addr < 0x4000:
