@@ -68,22 +68,21 @@ type Mmc1 struct {
 	chrRam []uint8
 
 	// Registers
-	ctrl     uint8 // 0x8000-0x9fff
-	chrBank0 uint8 // 0xa000-0xbfff
-	chrBank1 uint8 // 0xc000-0xdfff
-	prgBank  uint8 // 0xe000-0xffff
+	ctrl     Mmc1CtrlReg // 0x8000-0x9fff
+	chrBank0 uint8       // 0xa000-0xbfff
+	chrBank1 uint8       // 0xc000-0xdfff
+	prgBank  uint8       // 0xe000-0xffff
 
 	// Register control
 	regAccumulator uint8
 	regWriteCount  uint8
 }
 
-const (
-	MirrorOneScreenLower = iota
-	MirrorOneScreenUpper
-	MirrorVertical
-	MirrorHorizontal
-)
+type Mmc1CtrlReg uint8
+
+func (ctrl Mmc1CtrlReg) prgBankMode() uint8 { return uint8(ctrl >> 2 & 3) }
+func (ctrl Mmc1CtrlReg) chrBankMode() uint8 { return uint8(ctrl >> 4 & 1) }
+func (ctrl Mmc1CtrlReg) mirrorMode() uint8 { return uint8(ctrl & 3) }
 
 func NewMmc1(rom *Rom) *Mmc1 {
 	return &Mmc1{
@@ -98,11 +97,10 @@ func (mmc1 *Mmc1) LoadPrg(addr uint16) uint8 {
 		return mmc1.prgRam[addr-0x6000]
 	}
 
-	bankMode := (mmc1.ctrl >> 2) & 3
 	var bank uint8
 	switch {
 	case addr <= 0xbfff: // First slot 0x8000-0xbfff
-		switch bankMode {
+		switch mmc1.ctrl.prgBankMode() {
 		case 0, 1: // Switch 32k at 0x8000
 			bank = mmc1.prgBank & 0xfe
 		case 2: // Fix first bank at 0x8000
@@ -111,7 +109,7 @@ func (mmc1 *Mmc1) LoadPrg(addr uint16) uint8 {
 			bank = mmc1.prgBank
 		}
 	case addr <= 0xffff: // Second slot 0xc000-0xffff
-		switch bankMode {
+		switch mmc1.ctrl.prgBankMode() {
 		case 0, 1: // Switch 32k at 0x8000
 			bank = (mmc1.prgBank & 0xfe) | 1
 		case 2: // Switch bank at 0xc000
@@ -142,7 +140,7 @@ func (mmc1 *Mmc1) StorePrg(addr uint16, val uint8) {
 	if mmc1.regWriteCount == 5 {
 		switch {
 		case addr <= 0x9fff:
-			mmc1.ctrl = mmc1.regAccumulator
+			mmc1.ctrl = Mmc1CtrlReg(mmc1.regAccumulator)
 		case addr <= 0xbfff:
 			mmc1.chrBank0 = mmc1.regAccumulator
 		case addr <= 0xdfff:
