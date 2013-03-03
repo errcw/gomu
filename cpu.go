@@ -35,8 +35,9 @@ const (
 	IrqVector   = 0xfffe
 )
 
-func NewCpu(memmap *MemoryMap) *Cpu {
-	return &Cpu{a: 0, x: 0, y: 0, sp: 0xfd, flags: IrqFlag, MemoryMap: memmap}
+func (cpu *Cpu) Power() {
+	cpu.sp = 0xfd
+	cpu.flags = IrqFlag
 }
 
 func (cpu *Cpu) Reset() {

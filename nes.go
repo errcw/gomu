@@ -6,6 +6,31 @@ import (
 	"unsafe"
 )
 
+type Nes struct {
+	cpu   *Cpu
+	ppu   *Ppu
+	apu   *Apu
+	input *Input
+	mem   *MemoryMap
+}
+
+func NewNes(rom *Rom) *Nes {
+	cpu := &Cpu{}
+	ppu := &Ppu{}
+	apu := &Apu{}
+	input := &Input{}
+	mem := &MemoryMap{
+		cpu:    cpu,
+		ppu:    ppu,
+		apu:    apu,
+		input:  input,
+		mapper: NewMapper(rom)}
+	cpu.MemoryMap = mem
+	cpu.Power()
+	cpu.Reset()
+	return &Nes{cpu, ppu, apu, input, mem}
+}
+
 func blit(pixels []Pixel, surface *sdl.Surface) {
 	var pixel uint32
 	surface.Lock()
@@ -34,25 +59,21 @@ func main() {
 		panic(fmt.Sprintf("Failed to load ROM: %v", err))
 	}
 
-	ppu := Ppu{}
-	apu := Apu{}
-	mem := &MemoryMap{ppu: ppu, apu: apu, mapper: NewMapper(rom)}
-	cpu := NewCpu(mem)
-	cpu.Reset()
+	nes := NewNes(rom)
 
 	steps := 0
 	for {
-		cycles := cpu.Step()
+		cycles := nes.cpu.Step()
 
-		ppuResult := ppu.Step(cycles)
+		ppuResult := nes.ppu.Step(cycles)
 		switch ppuResult {
 		case PpuVblankNmi:
-			cpu.Nmi()
+			nes.cpu.Nmi()
 		case PpuNewFrame:
-			blit(ppu.framebuffer, screen)
+			blit(nes.ppu.framebuffer, screen)
 		}
 
-		apu.Step(cycles)
+		nes.apu.Step(cycles)
 
 		steps++
 		if steps > 10000000 {

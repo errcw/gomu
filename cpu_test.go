@@ -9,14 +9,11 @@ func TestCpuRom(t *testing.T) {
 		return
 	}
 
-	mem := &MemoryMap{mapper: NewMapper(rom)}
-	cpu := NewCpu(mem)
-	cpu.Reset()
-
-	ram := cpu.MemoryMap.mapper.(*Mmc1).prgRam
+	nes := NewNes(rom)
+	ram := nes.cpu.MemoryMap.mapper.(*Mmc1).prgRam
 
 	for {
-		cpu.Step()
+		nes.cpu.Step()
 		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] != 0x80 {
 			break
 		}

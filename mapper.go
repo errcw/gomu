@@ -82,7 +82,7 @@ type Mmc1CtrlReg uint8
 
 func (ctrl Mmc1CtrlReg) prgBankMode() uint8 { return uint8(ctrl >> 2 & 3) }
 func (ctrl Mmc1CtrlReg) chrBankMode() uint8 { return uint8(ctrl >> 4 & 1) }
-func (ctrl Mmc1CtrlReg) mirrorMode() uint8 { return uint8(ctrl & 3) }
+func (ctrl Mmc1CtrlReg) mirrorMode() uint8  { return uint8(ctrl & 3) }
 
 func NewMmc1(rom *Rom) *Mmc1 {
 	return &Mmc1{
