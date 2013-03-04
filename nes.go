@@ -25,9 +25,11 @@ func NewNes(rom *Rom) *Nes {
 		apu:    apu,
 		input:  input,
 		mapper: NewMapper(rom)}
+
 	cpu.MemoryMap = mem
 	cpu.Power()
 	cpu.Reset()
+
 	return &Nes{cpu, ppu, apu, input, mem}
 }
 

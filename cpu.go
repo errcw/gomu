@@ -15,6 +15,9 @@ type Cpu struct {
 	pageCrossed bool
 	branchTaken bool
 
+	// Cycle count to hold the CPU idle (during DMA)
+	idleCycles int
+
 	*MemoryMap
 }
 
@@ -56,7 +59,17 @@ func (cpu *Cpu) Nmi() {
 	cpu.pc = makeWord(lowNmiAddr, highNmiAddr)
 }
 
+func (cpu *Cpu) Idle(cycles int) {
+	cpu.idleCycles += cycles
+}
+
 func (cpu *Cpu) Step() int {
+	if cpu.idleCycles > 0 {
+		cycles := cpu.idleCycles
+		cpu.idleCycles = 0
+		return cycles
+	}
+
 	opcode := cpu.loadAndIncPc()
 	instruction, ok := instructions[opcode]
 	if !ok {
@@ -69,7 +82,7 @@ func (cpu *Cpu) Step() int {
 		cycles++
 		cpu.pageCrossed = false
 	}
-	if cpu.branchTaken && instruction.hasBranchCyclePenalty {
+	if cpu.branchTaken && instruction.hasBranchPenalty {
 		cycles++
 		cpu.branchTaken = false
 	}
@@ -184,9 +197,9 @@ type Instruction struct {
 
 	// Number of cycles taken by this instruction, including extra cycles if the as
 	// address crosses a page boundary or a branch is taken
-	cycles                int
-	hasPageCrossPenalty   bool
-	hasBranchCyclePenalty bool
+	cycles              int
+	hasPageCrossPenalty bool
+	hasBranchPenalty    bool
 }
 
 var instructions = map[uint8]Instruction{
@@ -351,14 +364,14 @@ var instructions = map[uint8]Instruction{
 	0x20: {fn: jsr, addr: absolute, cycles: 6},
 	0x60: {fn: rts, addr: implied, cycles: 6},
 	// BCC, BCS, BNE, BEQ, BPL, BMI, BVC, BVS
-	0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0x10: {fn: bpl, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0x30: {fn: bmi, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0x50: {fn: bvc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
-	0x70: {fn: bvs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchCyclePenalty: true},
+	0x90: {fn: bcc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0xb0: {fn: bcs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0xd0: {fn: bne, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0xf0: {fn: beq, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0x10: {fn: bpl, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0x30: {fn: bmi, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0x50: {fn: bvc, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
+	0x70: {fn: bvs, addr: relative, cycles: 2, hasPageCrossPenalty: true, hasBranchPenalty: true},
 	// CLC, CLD, CLI, CLV, SEC, SED, SEI
 	0x18: {fn: clc, addr: implied, cycles: 2},
 	0xd8: {fn: cld, addr: implied, cycles: 2},

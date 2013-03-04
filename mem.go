@@ -31,7 +31,7 @@ func (mem *MemoryMap) Store(addr uint16, val uint8) {
 	case addr < 0x4000:
 		mem.ppu.Store(addr, val)
 	case addr == 0x4014:
-		dma(val)
+		dma(mem, val)
 	case addr == 0x4016:
 		mem.input.Store(addr, val)
 	case addr <= 0x4018:
@@ -41,5 +41,13 @@ func (mem *MemoryMap) Store(addr uint16, val uint8) {
 	}
 }
 
-func dma(addrHigh uint8) {
+func dma(mem *MemoryMap, addrHigh uint8) {
+	for addrLow := 0; addrLow <= 0xff; addrLow++ {
+		addr := uint16(addrHigh<<8) | uint16(addrLow)
+		mem.Store(0x2004, mem.Load(addr))
+	}
+	// FIXME: Not entirely cycle accurate--starting OAM DMA on CPU read beat (odd
+	// cycle) adds an extra cycle to the CPU idle time. Moreover there are
+	// complications with APU DMC DMA and cycle stealing.
+	mem.cpu.Idle(513)
 }
