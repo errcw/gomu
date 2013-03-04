@@ -15,8 +15,10 @@ type Nes struct {
 }
 
 func NewNes(rom *Rom) *Nes {
+	mapper := NewMapper(rom)
+
 	cpu := &Cpu{}
-	ppu := &Ppu{}
+	ppu := &Ppu{vram: &VramMemoryMap{mapper: mapper}}
 	apu := &Apu{}
 	input := &Input{}
 	mem := &MemoryMap{
@@ -24,7 +26,7 @@ func NewNes(rom *Rom) *Nes {
 		ppu:    ppu,
 		apu:    apu,
 		input:  input,
-		mapper: NewMapper(rom)}
+		mapper: mapper}
 
 	cpu.MemoryMap = mem
 	cpu.Power()
