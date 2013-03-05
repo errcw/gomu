@@ -20,6 +20,8 @@ type Ppu struct {
 	vramAddr   uint16
 	writeLatch bool
 
+  readBuffer uint8
+
 	scrollX uint8
 }
 
@@ -41,20 +43,16 @@ func (ppu *Ppu) Step(cycles int) PpuResult {
 
 func (ppu *Ppu) Load(addr uint16) uint8 {
 	switch addr & 7 {
-	case 0:
-		return uint8(ppu.ctrl)
-	case 1:
-		return uint8(ppu.mask)
 	case 2:
-		return uint8(ppu.status) // TODO reset latch, etc.
-	case 7:
-		return ppu.data // TODO
+		return ppu.readStatus()
 	case 4:
-		panic("OAMDATA not implemented")
-	case 3, 5, 6:
-		return 0 // OAMADDR, PPUSCROLL, PPUADDR are read-only
+		return ppu.readOamData()
+	case 7:
+		return ppu.readData()
 	}
-	panic("Unexpected PPU load")
+  // Better emulation would simulate the bus hold-up between the PPU and CPU
+  // that causes the last value written to be readable for ~600ms
+  return 0
 }
 
 func (ppu *Ppu) Store(addr uint16, val uint8) {
@@ -76,6 +74,28 @@ func (ppu *Ppu) Store(addr uint16, val uint8) {
 	}
 }
 
+func (ppu *Ppu) readStatus() uint8 {
+  ppu.writeLatch = false
+  // TODO Not fully implemented
+  return uint8(ppu.status)
+}
+
+func (ppu *Ppu) readOamData() uint8 {
+  return ppu.oam[ppu.oamAddr]
+}
+
+func (ppu *Ppu) readData() uint8 {
+  data := ppu.readBuffer
+  if ppu.vramAddr < 0x3f00 {
+    ppu.readBuffer = ppu.mem.Load(ppu.vramAddr)
+  } else {
+    data = ppu.mem.Load(ppu.vramAddr)
+    ppu.readBuffer = ppu.mem.Load(ppu.vramAddr - 0x1000)
+  }
+	ppu.vramAddr += ppu.ctrl.vramAddrInc()
+  return data
+}
+
 func (ppu *Ppu) writeCtrl(val uint8) {
 	ppu.ctrl = PpuCtrlReg(val)
 	ppu.vramLatch = (ppu.vramLatch & 0xf3ff) | ((uint16(val) & 3) << 10)
@@ -90,6 +110,9 @@ func (ppu *Ppu) writeOamAddr(val uint8) {
 }
 
 func (ppu *Ppu) writeOamData(val uint8) {
+  if ppu.oamAddr&3 == 2 { // OAM is only 29 bits, mask off part of byte 2
+    val &= 0xe3
+  }
 	ppu.oam[ppu.oamAddr] = val
 	ppu.oamAddr++
 }
