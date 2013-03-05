@@ -1,0 +1,6 @@
+Performance
+-----------
+- Precompute more things
+  * Mapper memory mappings: rearrange pointers instead of computing offsets
+  * Mapper mirroring: set state in PPU
+

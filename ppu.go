@@ -91,7 +91,7 @@ func (ppu *Ppu) writeOamAddr(val uint8) {
 
 func (ppu *Ppu) writeOamData(val uint8) {
 	ppu.oam[ppu.oamAddr] = val
-	ppu.oamAddr = (ppu.oamAddr + 1) % 0x100
+	ppu.oamAddr++
 }
 
 func (ppu *Ppu) writeScroll(val uint8) {
@@ -99,7 +99,7 @@ func (ppu *Ppu) writeScroll(val uint8) {
 		ppu.vramLatch = (ppu.vramLatch & 0xffe0) | ((uint16(val) & 0xf8) >> 3)
 		ppu.scrollX = val & 0x7
 	} else {
-		ppu.vramLatch = (ppu.vramLatch & 0x8fff) | ((uint16(val) & 0x7) << 12)
+		ppu.vramLatch = (ppu.vramLatch & 0x8fff) | ((uint16(val) & 0x07) << 12)
 		ppu.vramLatch = (ppu.vramLatch & 0xfc1f) | ((uint16(val) & 0xf8) << 2)
 	}
 	ppu.writeLatch = !ppu.writeLatch
@@ -122,8 +122,25 @@ func (ppu *Ppu) writeData(val uint8) {
 
 type VramMemoryMap struct {
 	mapper     Mapper
-	nametables [0x800]uint8
+	nametables [2]*[0x400]uint8
 	palette    [0x20]uint8
+}
+
+const (
+	MirrorVertical = iota
+	MirrorHorizontal
+	MirrorSingleUpper
+	MirrorSingleLower
+)
+
+type Mirroring int
+
+// Maps logical nametables to physical nametables based on the mirroring configuration
+var nametableMirroring = map[Mirroring][4]int{
+	MirrorVertical:    {0, 0, 1, 1},
+	MirrorHorizontal:  {0, 1, 0, 1},
+	MirrorSingleUpper: {0, 0, 0, 0},
+	MirrorSingleLower: {1, 1, 1, 1},
 }
 
 func (mem *VramMemoryMap) Load(addr uint16) uint8 {
@@ -131,10 +148,9 @@ func (mem *VramMemoryMap) Load(addr uint16) uint8 {
 	case addr < 0x2000:
 		return mem.mapper.LoadChr(addr)
 	case addr < 0x3f00:
-		// FIXME Does mirroring work correctly like this?
-		return mem.nametables[addr&0x7ff]
+		nametable := nametableMirroring[mem.mapper.Mirroring()][(addr&0xc00)>>10]
+		return mem.nametables[nametable][addr&0x3ff]
 	case addr < 0x4000:
-		// FIXME Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
 		return mem.palette[addr&0x1f]
 	}
 	panic("Invalid VRAM address")
@@ -145,11 +161,15 @@ func (mem *VramMemoryMap) Store(addr uint16, val uint8) {
 	case addr < 0x2000:
 		mem.mapper.StoreChr(addr, val)
 	case addr < 0x3f00:
-		// FIXME Does mirroring work correctly like this?
-		mem.nametables[addr&0x7ff] = val
+		nametable := nametableMirroring[mem.mapper.Mirroring()][(addr&0xc00)>>10]
+		mem.nametables[nametable][addr&0x3ff] = val
 	case addr < 0x4000:
-		// FIXME Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
-		mem.palette[addr&0x1f] = val
+		if addr&0xf == 0 {
+			mem.palette[0x00] = val
+			mem.palette[0x10] = val
+		} else {
+			mem.palette[addr&0x1f] = val
+		}
 	}
 }
 

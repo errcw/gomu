@@ -3,11 +3,11 @@ package main
 import "fmt"
 
 type Mapper interface {
-	// TODO LoadPrg/LoadChr?
 	LoadPrg(addr uint16) uint8
 	StorePrg(addr uint16, val uint8)
 	LoadChr(addr uint16) uint8
 	StoreChr(addr uint16, val uint8)
+	Mirroring() Mirroring
 }
 
 func NewMapper(rom *Rom) Mapper {
@@ -57,6 +57,13 @@ func (nrom *Nrom) LoadChr(addr uint16) uint8 {
 
 func (nrom *Nrom) StoreChr(addr uint16, val uint8) {
 	panic("Nrom cannot write to CHR ROM")
+}
+
+func (nrom *Nrom) Mirroring() Mirroring {
+	if nrom.rom.header.Flags6&0x1 == 0 {
+		return MirrorHorizontal
+	}
+	return MirrorVertical
 }
 
 // MMC1 / SxROM
@@ -176,4 +183,18 @@ func (mmc1 *Mmc1) LoadChr(addr uint16) uint8 {
 
 func (mmc1 *Mmc1) StoreChr(addr uint16, val uint8) {
 	mmc1.chrRam[addr] = val
+}
+
+func (mmc1 *Mmc1) Mirroring() Mirroring {
+	switch mmc1.ctrl.mirrorMode() {
+	case 0:
+		return MirrorSingleUpper
+	case 1:
+		return MirrorSingleLower
+	case 2:
+		return MirrorVertical
+	case 3:
+		return MirrorHorizontal
+	}
+	panic("Impossible mirror mode")
 }
