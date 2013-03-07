@@ -20,9 +20,11 @@ type Ppu struct {
 	vramAddr   uint16
 	writeLatch bool
 
-  readBuffer uint8
+	readBuffer uint8
 
 	scrollX uint8
+
+	cycle int
 }
 
 type PpuCtrlReg uint8
@@ -50,9 +52,9 @@ func (ppu *Ppu) Load(addr uint16) uint8 {
 	case 7:
 		return ppu.readData()
 	}
-  // Better emulation would simulate the bus hold-up between the PPU and CPU
-  // that causes the last value written to be readable for ~600ms
-  return 0
+	// Better emulation would simulate the bus hold-up between the PPU and CPU
+	// that causes the last value written to be readable for ~600ms
+	return 0
 }
 
 func (ppu *Ppu) Store(addr uint16, val uint8) {
@@ -75,25 +77,30 @@ func (ppu *Ppu) Store(addr uint16, val uint8) {
 }
 
 func (ppu *Ppu) readStatus() uint8 {
-  ppu.writeLatch = false
-  // TODO Not fully implemented
-  return uint8(ppu.status)
+	ppu.writeLatch = false
+
+	// Better emulation would drop the vblank flag and suppress NMIs when the
+	// status is read at the exact start of vblank
+	status := uint8(ppu.status)
+	ppu.status.clearVblank()
+
+	return status
 }
 
 func (ppu *Ppu) readOamData() uint8 {
-  return ppu.oam[ppu.oamAddr]
+	return ppu.oam[ppu.oamAddr]
 }
 
 func (ppu *Ppu) readData() uint8 {
-  data := ppu.readBuffer
-  if ppu.vramAddr < 0x3f00 {
-    ppu.readBuffer = ppu.mem.Load(ppu.vramAddr)
-  } else {
-    data = ppu.mem.Load(ppu.vramAddr)
-    ppu.readBuffer = ppu.mem.Load(ppu.vramAddr - 0x1000)
-  }
+	data := ppu.readBuffer
+	if ppu.vramAddr < 0x3f00 {
+		ppu.readBuffer = ppu.vram.Load(ppu.vramAddr)
+	} else {
+		data = ppu.vram.Load(ppu.vramAddr)
+		ppu.readBuffer = ppu.vram.Load(ppu.vramAddr - 0x1000)
+	}
 	ppu.vramAddr += ppu.ctrl.vramAddrInc()
-  return data
+	return data
 }
 
 func (ppu *Ppu) writeCtrl(val uint8) {
@@ -110,9 +117,9 @@ func (ppu *Ppu) writeOamAddr(val uint8) {
 }
 
 func (ppu *Ppu) writeOamData(val uint8) {
-  if ppu.oamAddr&3 == 2 { // OAM is only 29 bits, mask off part of byte 2
-    val &= 0xe3
-  }
+	if ppu.oamAddr&3 == 2 { // OAM is only 29 bits, mask off part of byte 2
+		val &= 0xe3
+	}
 	ppu.oam[ppu.oamAddr] = val
 	ppu.oamAddr++
 }
@@ -202,3 +209,10 @@ func (ctrl PpuCtrlReg) vramAddrInc() uint16 {
 	}
 	return 1
 }
+
+func (status *PpuStatusReg) setSpriteOverflow()   { *status |= 0x20 }
+func (status *PpuStatusReg) clearSpriteOverflow() { *status &= 0xdf }
+func (status *PpuStatusReg) setSprite0Hit()       { *status |= 0x40 }
+func (status *PpuStatusReg) clearSprite0Hit()     { *status &= 0xbf }
+func (status *PpuStatusReg) setVblank()           { *status |= 0x80 }
+func (status *PpuStatusReg) clearVblank()         { *status &= 0x7f }
