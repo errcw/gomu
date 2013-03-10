@@ -385,6 +385,7 @@ var instructions = map[uint8]Instruction{
 	0x40: {fn: rti, addr: implied, cycles: 6},
 	// NOP
 	0xea: {fn: nop, addr: implied, cycles: 2},
+	// Better emulation would include implementations of unofficial opcodes
 }
 
 func lda(cpu *Cpu, addr AddressFn) { cpu.a = cpu.setNZ(cpu.Load(addr(cpu))) }

@@ -28,6 +28,8 @@ func NewNes(rom *Rom) *Nes {
 		input:  input,
 		mapper: mapper}
 
+	ppu.Setup()
+
 	cpu.MemoryMap = mem
 	cpu.Power()
 	cpu.Reset()
@@ -65,23 +67,34 @@ func main() {
 
 	nes := NewNes(rom)
 
-	steps := 0
+	//steps := 0
 	for {
 		cycles := nes.cpu.Step()
 
-		ppuResult := nes.ppu.Step(cycles)
-		switch ppuResult {
-		case PpuVblankNmi:
-			nes.cpu.Nmi()
-		case PpuNewFrame:
-			blit(nes.ppu.framebuffer, screen)
+		for i := 0; i < cycles*3; i++ {
+			ppuResult := nes.ppu.Step()
+			switch ppuResult {
+			case PpuVblankNmi:
+				nes.cpu.Nmi()
+			case PpuNewFrame:
+				blit(nes.ppu.Framebuffer, screen)
+			}
 		}
 
 		nes.apu.Step(cycles)
 
-		steps++
-		if steps > 10000000 {
+		ram := nes.cpu.MemoryMap.mapper.(*Mmc1).prgRam
+		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] != 0x80 {
+			fmt.Println("Breaking--test done")
 			break
 		}
+
+		/*
+					steps++
+					if steps > 10000000 {
+			      fmt.Println("Breaking--too many steps")
+						break
+					}
+		*/
 	}
 }
