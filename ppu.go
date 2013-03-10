@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 type Ppu struct {
 	ctrl    PpuCtrlReg   // PPUCTRL
 	mask    PpuMaskReg   // PPUMASK
@@ -184,6 +186,22 @@ func (ppu *Ppu) incrementCoarseXScroll() {
 }
 
 func (ppu *Ppu) renderBackground() {
+  fetchTileData := func() (uint8, uint8, uint8) {
+    nametableAddr := 0x2000 | (ppu.vramAddr & 0xfff)
+    tileIndex := ppu.vram.Load(nametableAddr)
+    vramTileAddr := (uint16(tileIndex) << 4) | (ppu.vramAddr >> 12) | ppu.ctrl.backgroundPatternAddress()
+    tile1 := ppu.vram.Load(vramTileAddr)
+    tile2 := ppu.vram.Load(vramTileAddr + 8)
+
+    attrTableAddr := 0x23c0 | (ppu.vramAddr & 0xc00) | ((ppu.vramAddr >> 4) & 0x38) | ((ppu.vramAddr >> 2) & 0x7)
+    attrByteShift := ((ppu.vramAddr >> 4) & 0x4) | (ppu.vramAddr & 0x2)
+    palette := (ppu.vram.Load(attrTableAddr) >> attrByteShift) & 0x3
+
+    ppu.incrementCoarseXScroll()
+
+    return tile1, tile2, palette
+  }
+  fetchTileData()
 }
 
 func (ppu *Ppu) renderSprites() {
@@ -344,7 +362,7 @@ func (mem *VramMemoryMap) Load(addr uint16) uint8 {
 	case addr < 0x4000:
 		return mem.palette[addr&0x1f]
 	}
-	panic("Invalid VRAM address")
+	panic(fmt.Sprintf("Invalid VRAM address %x", addr))
 }
 
 func (mem *VramMemoryMap) Store(addr uint16, val uint8) {
@@ -375,7 +393,7 @@ func (ctrl PpuCtrlReg) baseNametableAddress() uint16 {
 	case 3:
 		return 0x2c00
 	}
-	panic("Invalid control register state")
+	panic(fmt.Sprintf("Invalid control register state %v", ctrl))
 }
 func (ctrl PpuCtrlReg) vramAddrInc() uint16 {
 	if (ctrl>>2)&1 == 1 {
