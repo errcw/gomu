@@ -1,34 +1,42 @@
 package main
 
 type Ppu struct {
-	ctrl   PpuCtrlReg   // PPUCTRL (0x2000)
-	mask   PpuMaskReg   // PPUMASK (0x2001)
-	status PpuStatusReg // PPUSTATUS (0x2002)
-
-	oamAddr uint16 // OAMADDR (0x2003)
-	data    uint8  // PPUDATA (0x2007)
+	ctrl    PpuCtrlReg   // PPUCTRL
+	mask    PpuMaskReg   // PPUMASK
+	status  PpuStatusReg // PPUSTATUS
+	oamAddr uint16       // OAMADDR
 
 	vramLatch  uint16
 	vramAddr   uint16
-	writeLatch bool
-	readBuffer uint8
+	writeLatch bool  // For PPUSCROLL and PPUADDR
+	readBuffer uint8 // For PPUDATA
 
-  pbuffer     []PpuPixel
-	Framebuffer []Pixel
+	pbuffer     []PpuPixel // Internal framebuffer state
+	Framebuffer []Pixel    // External framebuffer state
 
 	vram *VramMemoryMap
 	oam  [0x100]uint8
 
-	scrollX uint8
+	fineScrollX uint8
 
-	cycle    int
-	scanline int
-	frame    int
+	cycle    int // Cycle in the current scanline
+	scanline int // Scanline in the current frame
+	frame    int // Frame count
 }
 
 type PpuCtrlReg uint8
 type PpuMaskReg uint8
 type PpuStatusReg uint8
+
+type PpuPixel struct {
+	color uint32
+	value int
+	index int
+}
+
+type Pixel struct {
+	R, G, B uint8
+}
 
 const PpuPrerenderScanline = -1
 const PpuQuietScanline = 240
@@ -36,31 +44,20 @@ const PpuVblankStartScanline = 241
 const PpuVblankEndScanline = 260
 const PpuCyclesPerScanline = 341
 
-var PaletteRgb = []uint32{
-  0x666666, 0x002A88, 0x1412A7, 0x3B00A4, 0x5C007E,
-  0x6E0040, 0x6C0600, 0x561D00, 0x333500, 0x0B4800,
-  0x005200, 0x004F08, 0x00404D, 0x000000, 0x000000,
-  0x000000, 0xADADAD, 0x155FD9, 0x4240FF, 0x7527FE,
-  0xA01ACC, 0xB71E7B, 0xB53120, 0x994E00, 0x6B6D00,
-  0x388700, 0x0C9300, 0x008F32, 0x007C8D, 0x000000,
-  0x000000, 0x000000, 0xFFFEFF, 0x64B0FF, 0x9290FF,
-  0xC676FF, 0xF36AFF, 0xFE6ECC, 0xFE8170, 0xEA9E22,
-  0xBCBE00, 0x88D800, 0x5CE430, 0x45E082, 0x48CDDE,
-  0x4F4F4F, 0x000000, 0x000000, 0xFFFEFF, 0xC0DFFF,
-  0xD3D2FF, 0xE8C8FF, 0xFBC2FF, 0xFEC4EA, 0xFECCC5,
-  0xF7D8A5, 0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC,
-  0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000,
-}
-
-
-type PpuPixel struct {
-  color uint32
-  value int
-  index int
-}
-
-type Pixel struct {
-	R, G, B uint8
+var paletteRgb = []uint32{
+	0x666666, 0x002a88, 0x1412a7, 0x3b00a4, 0x5c007e,
+	0x6e0040, 0x6c0600, 0x561d00, 0x333500, 0x0b4800,
+	0x005200, 0x004f08, 0x00404d, 0x000000, 0x000000,
+	0x000000, 0xadadad, 0x155fd9, 0x4240ff, 0x7527fe,
+	0xa01acc, 0xb71e7b, 0xb53120, 0x994e00, 0x6b6d00,
+	0x388700, 0x0c9300, 0x008f32, 0x007c8d, 0x000000,
+	0x000000, 0x000000, 0xfffeff, 0x64b0ff, 0x9290ff,
+	0xc676ff, 0xf36aff, 0xfe6ecc, 0xfe8170, 0xea9e22,
+	0xbcbe00, 0x88d800, 0x5ce430, 0x45e082, 0x48cdde,
+	0x4f4f4f, 0x000000, 0x000000, 0xfffeff, 0xc0dfff,
+	0xd3d2ff, 0xe8c8ff, 0xfbc2ff, 0xfec4ea, 0xfeccc5,
+	0xf7d8a5, 0xe4e594, 0xcfef96, 0xbdf4ab, 0xb3f3cc,
+	0xb5ebf2, 0xb8b8b8, 0x000000, 0x000000,
 }
 
 type PpuResult int
@@ -101,7 +98,7 @@ func (ppu *Ppu) Step() PpuResult {
 	if ppu.scanline > PpuVblankEndScanline {
 		ppu.scanline = PpuPrerenderScanline
 		ppu.frame++
-    ppu.copyFrame()
+		ppu.copyFrame()
 		ret = PpuNewFrame
 	}
 
@@ -129,10 +126,10 @@ func (ppu *Ppu) renderScanlineCycle() {
 	switch ppu.cycle {
 	case 254:
 		if ppu.mask.showBackground() {
-      ppu.renderBackground()
+			ppu.renderBackground()
 		}
 		if ppu.mask.showSprites() {
-      ppu.renderSprites()
+			ppu.renderSprites()
 		}
 	case 256:
 		if ppu.mask.showBackground() || ppu.mask.showSprites() {
@@ -156,10 +153,10 @@ func (ppu *Ppu) updateVramAddrForScanline() {
 	ppu.incrementCoarseXScroll()
 	ppu.incrementCoarseXScroll()
 
-  // On cycle 256
+	// On cycle 256
 	if ppu.vramAddr&0x7000 == 0x7000 {
-    // Update coarse y scroll, zero fine y
-    sw := ppu.vramAddr & 0x3e0
+		// Increment coarse y scroll, reset fine y scroll to zero
+		sw := ppu.vramAddr & 0x3e0
 		ppu.vramAddr &= 0xfff
 		switch sw {
 		case 0x3a0:
@@ -170,11 +167,11 @@ func (ppu *Ppu) updateVramAddrForScanline() {
 			ppu.vramAddr += 0x20
 		}
 	} else {
-		// Update fine y scroll
+		// Increment fine y scroll
 		ppu.vramAddr += 0x1000
 	}
 
-  // On cycle 257
+	// On cycle 257
 	ppu.vramAddr = (ppu.vramAddr & 0x7be0) | (ppu.vramLatch & 0x41f)
 }
 
@@ -193,17 +190,17 @@ func (ppu *Ppu) renderSprites() {
 }
 
 func (ppu *Ppu) copyFrame() {
-  for i, pixel := range ppu.pbuffer {
-    // Compute the RGB color
-    rgb := PaletteRgb[pixel.color]
-    ppu.Framebuffer[i].R = uint8((rgb >> 16) & 0xff)
-    ppu.Framebuffer[i].G = uint8((rgb >> 8) & 0xff)
-    ppu.Framebuffer[i].B = uint8(rgb & 0xff)
+	for i, pixel := range ppu.pbuffer {
+		// Compute the RGB color
+		rgb := paletteRgb[pixel.color]
+		ppu.Framebuffer[i].R = uint8((rgb >> 16) & 0xff)
+		ppu.Framebuffer[i].G = uint8((rgb >> 8) & 0xff)
+		ppu.Framebuffer[i].B = uint8(rgb & 0xff)
 
-    // Reset the internal pixels for the next frame
-    pixel.value = 0
-    pixel.index = -1
-  }
+		// Reset the internal pixels for the next frame
+		pixel.value = 0
+		pixel.index = -1
+	}
 }
 
 func (ppu *Ppu) Load(addr uint16) uint8 {
@@ -291,7 +288,7 @@ func (ppu *Ppu) writeOamData(val uint8) {
 func (ppu *Ppu) writeScroll(val uint8) {
 	if !ppu.writeLatch {
 		ppu.vramLatch = (ppu.vramLatch & 0xffe0) | ((uint16(val) & 0xf8) >> 3)
-		ppu.scrollX = val & 0x7
+		ppu.fineScrollX = val & 0x7
 	} else {
 		ppu.vramLatch = (ppu.vramLatch & 0x8fff) | ((uint16(val) & 0x07) << 12)
 		ppu.vramLatch = (ppu.vramLatch & 0xfc1f) | ((uint16(val) & 0xf8) << 2)
