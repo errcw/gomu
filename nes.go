@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
+	"os"
 	"unsafe"
 )
 
@@ -50,6 +51,16 @@ func blit(pixels []Pixel, surface *sdl.Surface) {
 }
 
 func main() {
+	if len(os.Args) != 2 {
+		fmt.Println("Usage: gomu [rom]")
+		return
+	}
+
+	rom, err := LoadRom(os.Args[1])
+	if err != nil {
+		panic(fmt.Sprintf("Failed to load ROM: %v", err))
+	}
+
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK) != 0 {
 		panic(fmt.Sprintf("SDL failed to initialize: %v", sdl.GetError()))
 	}
@@ -59,15 +70,11 @@ func main() {
 	if screen == nil {
 		panic(fmt.Sprintf("SDL screen failed to initialize: %v", sdl.GetError()))
 	}
-
-	rom, err := LoadRom("testdata/instr_test-v3/official_only.nes")
-	if err != nil {
-		panic(fmt.Sprintf("Failed to load ROM: %v", err))
-	}
+	sdl.WM_SetCaption("Gomu", "")
 
 	nes := NewNes(rom)
 
-	//steps := 0
+RUN:
 	for {
 		cycles := nes.cpu.Step()
 
@@ -83,18 +90,11 @@ func main() {
 
 		nes.apu.Step(cycles)
 
-		ram := nes.cpu.MemoryMap.mapper.(*Mmc1).prgRam
-		if ram[1] == 0xde && ram[2] == 0xb0 && ram[3] == 0x61 && ram[0] != 0x80 {
-			fmt.Println("Breaking--test done")
-			break
+		// Pump events
+		event := sdl.Poll()
+		switch event.(type) {
+		case sdl.QuitEvent:
+			break RUN
 		}
-
-		/*
-					steps++
-					if steps > 10000000 {
-			      fmt.Println("Breaking--too many steps")
-						break
-					}
-		*/
 	}
 }

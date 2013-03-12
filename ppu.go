@@ -31,9 +31,8 @@ type PpuMaskReg uint8
 type PpuStatusReg uint8
 
 type PpuPixel struct {
-	color uint32
-	value int
-	index int
+	color uint8 // Index into palette
+	index int   // Priority
 }
 
 type Pixel struct {
@@ -71,6 +70,7 @@ const (
 )
 
 func (ppu *Ppu) Setup() {
+	ppu.pbuffer = make([]PpuPixel, 0xf000)
 	ppu.Framebuffer = make([]Pixel, 0xf000)
 	ppu.scanline = 241
 }
@@ -186,22 +186,65 @@ func (ppu *Ppu) incrementCoarseXScroll() {
 }
 
 func (ppu *Ppu) renderBackground() {
-  fetchTileData := func() (uint8, uint8, uint8) {
-    nametableAddr := 0x2000 | (ppu.vramAddr & 0xfff)
-    tileIndex := ppu.vram.Load(nametableAddr)
-    vramTileAddr := (uint16(tileIndex) << 4) | (ppu.vramAddr >> 12) | ppu.ctrl.backgroundPatternAddress()
-    tile1 := ppu.vram.Load(vramTileAddr)
-    tile2 := ppu.vram.Load(vramTileAddr + 8)
+	fetchTileData := func() (uint8, uint8, uint8) {
+		nametableAddr := 0x2000 | (ppu.vramAddr & 0xfff)
+		tileIndex := ppu.vram.Load(nametableAddr)
+		tileAddr := (uint16(tileIndex) << 4) | (ppu.vramAddr >> 12) | ppu.ctrl.backgroundPatternAddress()
+		tile1 := ppu.vram.Load(tileAddr)
+		tile2 := ppu.vram.Load(tileAddr + 8)
 
-    attrTableAddr := 0x23c0 | (ppu.vramAddr & 0xc00) | ((ppu.vramAddr >> 4) & 0x38) | ((ppu.vramAddr >> 2) & 0x7)
-    attrByteShift := ((ppu.vramAddr >> 4) & 0x4) | (ppu.vramAddr & 0x2)
-    palette := (ppu.vram.Load(attrTableAddr) >> attrByteShift) & 0x3
+		attrTableAddr := 0x23c0 | (ppu.vramAddr & 0xc00) | ((ppu.vramAddr >> 4) & 0x38) | ((ppu.vramAddr >> 2) & 0x7)
+		attrByteShift := ((ppu.vramAddr >> 4) & 0x4) | (ppu.vramAddr & 0x2)
+		palette := (ppu.vram.Load(attrTableAddr) >> attrByteShift) & 0x3
 
-    ppu.incrementCoarseXScroll()
+		ppu.incrementCoarseXScroll()
 
-    return tile1, tile2, palette
-  }
-  fetchTileData()
+		return tile1, tile2, palette
+	}
+
+	fetchPaletteEntry := func(paletteNumber, pixelValue uint8) uint8 {
+		if pixelValue == 0 {
+			return ppu.vram.palette[0]
+		}
+		return ppu.vram.palette[(paletteNumber<<2)+pixelValue]
+	}
+
+	low1, high1, palette1 := fetchTileData()
+	low2, high2, palette2 := fetchTileData()
+
+	// Load the two tiles into 16-bit shift registers
+	lowShift := (uint16(low1) << 8) | uint16(low2)
+	highShift := (uint16(high1) << 8) | uint16(high2)
+
+	for t := 0; t < 32; t++ {
+		for p := 0; p < 8; p++ {
+			shift := 15 - uint(p) - uint(ppu.fineScrollX)
+			pixel := (lowShift >> shift) & 1
+			pixel += ((highShift >> shift) & 1) << 1
+
+			var paletteNumber = palette1
+			if shift < 8 {
+				paletteNumber = palette2
+			}
+			color := fetchPaletteEntry(paletteNumber, uint8(pixel))
+
+			pixelIndex := ppu.scanline*256 + (t * 8) + p
+			// Skip pixels already rendered
+			if ppu.pbuffer[pixelIndex].color == 0 {
+				ppu.pbuffer[pixelIndex] = PpuPixel{
+					color: color,
+					index: -1,
+				}
+			}
+		}
+
+		palette1 = palette2
+
+		// Shift out the first tile and bring in a new one
+		low2, high2, palette2 = fetchTileData()
+		lowShift = (lowShift << 8) | uint16(low2)
+		highShift = (highShift << 8) | uint16(high2)
+	}
 }
 
 func (ppu *Ppu) renderSprites() {
@@ -216,8 +259,8 @@ func (ppu *Ppu) copyFrame() {
 		ppu.Framebuffer[i].B = uint8(rgb & 0xff)
 
 		// Reset the internal pixels for the next frame
-		pixel.value = 0
-		pixel.index = -1
+		ppu.pbuffer[i].color = 0
+		ppu.pbuffer[i].index = -1
 	}
 }
 
@@ -346,8 +389,8 @@ type Mirroring int
 
 // Maps logical nametables to physical nametables based on the mirroring configuration
 var nametableMirroring = map[Mirroring][4]int{
-	MirrorVertical:    {0, 0, 1, 1},
-	MirrorHorizontal:  {0, 1, 0, 1},
+	MirrorVertical:    {0, 1, 0, 1},
+	MirrorHorizontal:  {0, 0, 1, 1},
 	MirrorSingleUpper: {0, 0, 0, 0},
 	MirrorSingleLower: {1, 1, 1, 1},
 }
