@@ -38,6 +38,17 @@ func NewNes(rom *Rom) *Nes {
 	return &Nes{cpu, ppu, apu, input, mem}
 }
 
+var keyMap = map[uint32]int{
+	sdl.K_UP:     InputUp,
+	sdl.K_DOWN:   InputDown,
+	sdl.K_LEFT:   InputLeft,
+	sdl.K_RIGHT:  InputRight,
+	sdl.K_a:      InputA,
+	sdl.K_z:      InputB,
+	sdl.K_RETURN: InputStart,
+	sdl.K_RSHIFT: InputSelect,
+}
+
 func blit(pixels []Pixel, surface *sdl.Surface) {
 	var pixel uint32
 	surface.Lock()
@@ -92,7 +103,11 @@ RUN:
 
 		// Pump events
 		event := sdl.Poll()
-		switch event.(type) {
+		switch e := event.(type) {
+		case sdl.KeyboardEvent:
+			if in, ok := keyMap[e.Keysym.Sym]; ok {
+				nes.input.SetState(0, in, e.Type == sdl.KEYDOWN)
+			}
 		case sdl.QuitEvent:
 			break RUN
 		}
