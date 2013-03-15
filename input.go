@@ -39,7 +39,7 @@ func (input *Input) Load(addr uint16) uint8 {
 	} else {
 		val = 0x40
 	}
-	controller.latchState[controller.strobeIndex] = true
+	controller.latchState[controller.strobeIndex] = true // Subsequent reads always return true
 	controller.strobeIndex = (controller.strobeIndex + 1) % InputMax
 
 	return val

@@ -220,7 +220,7 @@ func (ppu *Ppu) renderBackground() {
 		for p := 0; p < 8; p++ {
 			shift := 15 - uint(p) - uint(ppu.fineScrollX)
 			pixel := (lowShift >> shift) & 1
-			pixel += ((highShift >> shift) & 1) << 1
+			pixel |= ((highShift >> shift) & 1) << 1
 
 			var paletteNumber = palette1
 			if shift < 8 {
@@ -248,6 +248,42 @@ func (ppu *Ppu) renderBackground() {
 }
 
 func (ppu *Ppu) renderSprites() {
+  sprites := 0
+  for s := 0; s < 64; s++ {
+    oamBase := s * 4;
+    x := int(ppu.oam[oamBase])
+    y := int(ppu.oam[oamBase + 3])
+    tile := uint16(ppu.oam[oamBase + 1])
+    attr := ppu.oam[oamBase + 2]
+    h := ppu.ctrl.spriteHeight()
+
+    // Sprites span (y, y+h]
+    if ppu.scanline <= y || ppu.scanline > y + h {
+      continue
+    }
+
+    yInSprite := ppu.scanline - y - 1
+
+    switch h {
+    case 8:
+      tileAddr := ppu.ctrl.spritePatternAddress() + (tile * 16)
+      // TODO render
+
+    case 16:
+      base := uint16(0x0)
+      if tile&1 == 1 {
+        base := 0x1000
+      }
+      tileAddr := base | (tile>>1) * 32
+      // TODO render
+    }
+
+    sprites++
+    if sprites > 8 {
+      ppu.status.setSpriteOverflow()
+      break
+    }
+  }
 }
 
 func (ppu *Ppu) copyFrame() {
@@ -456,7 +492,7 @@ func (ctrl PpuCtrlReg) backgroundPatternAddress() uint16 {
 	}
 	return 0x0
 }
-func (ctrl PpuCtrlReg) spriteSize() uint8 {
+func (ctrl PpuCtrlReg) spriteHeight() int {
 	if (ctrl>>5)&1 == 1 {
 		return 16 // 8x16
 	}
