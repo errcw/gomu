@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // CPU bus memory map
 type MemoryMap struct {
 	ram    [0x800]uint8 // 2KB of RAM
@@ -43,7 +45,7 @@ func (mem *MemoryMap) Store(addr uint16, val uint8) {
 
 func dma(mem *MemoryMap, addrHigh uint8) {
 	for addrLow := 0; addrLow <= 0xff; addrLow++ {
-		addr := uint16(addrHigh<<8) | uint16(addrLow)
+		addr := uint16(addrHigh)<<8 | uint16(addrLow)
 		mem.Store(0x2004, mem.Load(addr))
 	}
 	// FIXME: Not entirely cycle accurate--starting OAM DMA on CPU read beat (odd
