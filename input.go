@@ -9,6 +9,7 @@ type Input struct {
 
 type ControllerState struct {
 	state       [InputMax]bool // Down (true) or up (false) for each button in strobe order
+	latchState  [InputMax]bool // Latched version of the state reported by reads
 	strobeIndex int            // Current strobe position
 }
 
@@ -30,25 +31,16 @@ func (input *Input) SetState(controller int, button int, down bool) {
 }
 
 func (input *Input) Load(addr uint16) uint8 {
-	var controller *ControllerState
-	switch addr {
-	case 0x4016:
-		controller = &input.controllers[0]
-	case 0x4017:
-		controller = &input.controllers[1]
-	default:
-		panic(fmt.Sprintf("Unexpected address for input load: %x", addr))
-	}
+	controller := &input.controllers[addr-0x4016/* base addr */]
 
 	val := uint8(0)
-	if controller.strobeIndex < InputMax {
-		if controller.state[controller.strobeIndex] {
-			val = 0x41
-		} else {
-			val = 0x40
-		}
+	if controller.latchState[controller.strobeIndex] {
+		val = 0x41
+	} else {
+		val = 0x40
 	}
-	controller.strobeIndex++
+	controller.latchState[controller.strobeIndex] = true
+	controller.strobeIndex = (controller.strobeIndex + 1) % InputMax
 
 	return val
 }
@@ -58,7 +50,9 @@ func (input *Input) Store(addr uint16, val uint8) {
 		panic(fmt.Sprintf("Unexpected address for input store: %x", addr))
 	}
 	if (val&1) == 0 && (input.lastWrite&1) == 1 {
+		input.controllers[0].latchState = input.controllers[0].state
 		input.controllers[0].strobeIndex = 0
+		input.controllers[1].latchState = input.controllers[1].state
 		input.controllers[1].strobeIndex = 0
 	}
 	input.lastWrite = val
