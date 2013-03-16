@@ -293,16 +293,14 @@ func (ppu *Ppu) renderSprites() {
 			panic("8x16 sprites are unsupported")
 		}
 
-		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite))
-		tileData2 := ppu.vram.Load(tileAddr + uint16(yInSprite) + 8)
-
-		fmt.Printf("Loading from %x and got %x %x\n", tileAddr, tileData1, tileData2)
+		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite%8))
+		tileData2 := ppu.vram.Load(tileAddr + uint16(yInSprite%8) + 8)
 
 		// Render the sprite
 		for p := 0; p < 8; p++ {
 			frameX := x + p
 			if flipX {
-				frameX = x + (7 - p)
+				//frameX = x + (7 - p)
 			}
 
 			// Skip rendering past the edge of the frame
@@ -319,6 +317,7 @@ func (ppu *Ppu) renderSprites() {
 			}
 
 			pixelIndex := frameY*256 + frameX
+      //FIXME if (pixelIndex > 
 
 			// Check for sprite-0 hit before any other early-outs
 			if ppu.pbuffer[pixelIndex].color != 0 && s == 0 {
