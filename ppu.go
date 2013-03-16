@@ -248,42 +248,106 @@ func (ppu *Ppu) renderBackground() {
 }
 
 func (ppu *Ppu) renderSprites() {
-  sprites := 0
-  for s := 0; s < 64; s++ {
-    oamBase := s * 4;
-    x := int(ppu.oam[oamBase])
-    y := int(ppu.oam[oamBase + 3])
-    tile := uint16(ppu.oam[oamBase + 1])
-    attr := ppu.oam[oamBase + 2]
-    h := ppu.ctrl.spriteHeight()
+	sprites := 0
+	for s := 0; s < 64; s++ {
+		oamBase := s * 4
 
-    // Sprites span (y, y+h]
-    if ppu.scanline <= y || ppu.scanline > y + h {
-      continue
-    }
+		y := int(ppu.oam[oamBase])
+		x := int(ppu.oam[oamBase+3])
+		h := ppu.ctrl.spriteHeight()
 
-    yInSprite := ppu.scanline - y - 1
+		if x == 0 && y == 0 {
+			continue
+		}
 
-    switch h {
-    case 8:
-      tileAddr := ppu.ctrl.spritePatternAddress() + (tile * 16)
-      // TODO render
+		attr := ppu.oam[oamBase+2]
+		palette := attr & 3
+		behindBackground := (attr>>5)&1 == 1
+		flipX := (attr>>6)&1 == 1
+		flipY := (attr>>7)&1 == 1
 
-    case 16:
-      base := uint16(0x0)
-      if tile&1 == 1 {
-        base := 0x1000
-      }
-      tileAddr := base | (tile>>1) * 32
-      // TODO render
-    }
+		tile := uint16(ppu.oam[oamBase+1])
 
-    sprites++
-    if sprites > 8 {
-      ppu.status.setSpriteOverflow()
-      break
-    }
-  }
+		// Sprites span (y, y+h]
+		if ppu.scanline <= y || ppu.scanline > y+h {
+			continue
+		}
+
+		yInSprite := ppu.scanline - y - 1
+		frameY := ppu.scanline
+		if flipY {
+			frameY = y + (h - 1) - yInSprite
+		}
+
+		// Read the sprite tile data
+		var tileAddr uint16
+		switch h {
+		case 8:
+			tileAddr = ppu.ctrl.spritePatternAddress() + (tile * 16)
+		case 16:
+			base := uint16(0x0)
+			if tile&1 == 1 {
+				base = 0x1000
+			}
+			tileAddr = base | (tile>>1)*32
+			panic("8x16 sprites are unsupported")
+		}
+
+		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite))
+		tileData2 := ppu.vram.Load(tileAddr + uint16(yInSprite) + 8)
+
+		fmt.Printf("Loading from %x and got %x %x\n", tileAddr, tileData1, tileData2)
+
+		// Render the sprite
+		for p := 0; p < 8; p++ {
+			frameX := x + p
+			if flipX {
+				frameX = x + (7 - p)
+			}
+
+			// Skip rendering past the edge of the frame
+			if frameX > 255 {
+				continue
+			}
+
+			pixel := (tileData1 >> uint(p)) & 1
+			pixel |= ((tileData2 >> uint(p)) & 1) << 1
+
+			// Skip rendering transparent pixels
+			if pixel == 0 {
+				continue
+			}
+
+			pixelIndex := frameY*256 + frameX
+
+			// Check for sprite-0 hit before any other early-outs
+			if ppu.pbuffer[pixelIndex].color != 0 && s == 0 {
+				ppu.status.setSprite0Hit()
+			}
+
+			// Skip rendering sprites of lower priority over sprites of higher priority
+			if ppu.pbuffer[pixelIndex].index > -1 && ppu.pbuffer[pixelIndex].index < s {
+				continue
+			}
+
+			// Skip rendering behind-background priority with non-transparent pixels
+			if ppu.pbuffer[pixelIndex].color != 0 && behindBackground {
+				continue
+			}
+
+			color := ppu.vram.palette[0x10|(palette<<2)+pixel]
+			ppu.pbuffer[pixelIndex] = PpuPixel{
+				color: color,
+				index: s,
+			}
+		}
+
+		sprites++
+		if sprites > 8 {
+			ppu.status.setSpriteOverflow()
+			break
+		}
+	}
 }
 
 func (ppu *Ppu) copyFrame() {

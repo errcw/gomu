@@ -31,7 +31,7 @@ func (input *Input) SetState(controller int, button int, down bool) {
 }
 
 func (input *Input) Load(addr uint16) uint8 {
-	controller := &input.controllers[addr-0x4016/* base addr */]
+	controller := &input.controllers[addr-0x4016 /* base addr */]
 
 	val := uint8(0)
 	if controller.latchState[controller.strobeIndex] {

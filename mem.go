@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // CPU bus memory map
 type MemoryMap struct {
 	ram    [0x800]uint8 // 2KB of RAM

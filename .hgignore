@@ -2,3 +2,4 @@ gomu
 .exe
 .swp
 testdata/SMB.nes
+run.bat
