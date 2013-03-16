@@ -256,10 +256,6 @@ func (ppu *Ppu) renderSprites() {
 		x := int(ppu.oam[oamBase+3])
 		h := ppu.ctrl.spriteHeight()
 
-		if x == 0 && y == 0 {
-			continue
-		}
-
 		attr := ppu.oam[oamBase+2]
 		palette := attr & 3
 		behindBackground := (attr>>5)&1 == 1
@@ -274,6 +270,7 @@ func (ppu *Ppu) renderSprites() {
 		}
 
 		yInSprite := ppu.scanline - y - 1
+
 		frameY := ppu.scanline
 		if flipY {
 			frameY = y + (h - 1) - yInSprite
@@ -298,9 +295,9 @@ func (ppu *Ppu) renderSprites() {
 
 		// Render the sprite
 		for p := 0; p < 8; p++ {
-			frameX := x + p
+			frameX := x + (7 - p)
 			if flipX {
-				//frameX = x + (7 - p)
+				frameX = x + p
 			}
 
 			// Skip rendering past the edge of the frame
@@ -317,7 +314,9 @@ func (ppu *Ppu) renderSprites() {
 			}
 
 			pixelIndex := frameY*256 + frameX
-      //FIXME if (pixelIndex > 
+			if pixelIndex >= len(ppu.pbuffer) {
+				continue
+			}
 
 			// Check for sprite-0 hit before any other early-outs
 			if ppu.pbuffer[pixelIndex].color != 0 && s == 0 {
