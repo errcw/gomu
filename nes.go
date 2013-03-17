@@ -108,9 +108,9 @@ RUN:
 			if in, ok := keyMap[e.Keysym.Sym]; ok {
 				nes.input.SetState(0, in, e.Type == sdl.KEYDOWN)
 			}
-      if e.Keysym.Sym == sdl.K_ESCAPE {
-        break RUN
-      }
+			if e.Keysym.Sym == sdl.K_ESCAPE {
+				break RUN
+			}
 		case sdl.QuitEvent:
 			break RUN
 		}
