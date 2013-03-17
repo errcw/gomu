@@ -1,5 +1,6 @@
 gomu
 .exe
 .swp
-testdata/SMB.nes
 run.bat
+testdata/SMB.nes
+testdata/Zelda.nes

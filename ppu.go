@@ -271,7 +271,7 @@ func (ppu *Ppu) renderSprites() {
 
 		yInSprite := ppu.scanline - y - 1
 		if flipY {
-			yInSprite = h - yInSprite
+			yInSprite = h - yInSprite - 1
 		}
 
 		// Read the sprite tile data
@@ -290,8 +290,8 @@ func (ppu *Ppu) renderSprites() {
 			}
 		}
 
-		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite%8))
-		tileData2 := ppu.vram.Load(tileAddr + uint16(yInSprite%8) + 8)
+		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite))
+		tileData2 := ppu.vram.Load(tileAddr + uint16(yInSprite) + 8)
 
 		// Render the sprite
 		for p := 0; p < 8; p++ {
