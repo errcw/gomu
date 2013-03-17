@@ -126,7 +126,7 @@ func (mmc1 *Mmc1) LoadPrg(addr uint16) uint8 {
 		}
 	}
 
-	return mmc1.rom.prg[(uint16(bank)*0x4000)|(addr&0x3fff)]
+	return mmc1.rom.prg[(uint32(bank)*0x4000)|(uint32(addr)&0x3fff)]
 }
 
 func (mmc1 *Mmc1) StorePrg(addr uint16, val uint8) {
