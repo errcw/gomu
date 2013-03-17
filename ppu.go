@@ -284,7 +284,10 @@ func (ppu *Ppu) renderSprites() {
 			if tile&1 == 1 {
 				tileAddr |= 0x1000
 			}
-			panic("8x16 sprites are unsupported")
+			if yInSprite >= 8 {
+				tileAddr += 16
+				yInSprite -= 8
+			}
 		}
 
 		tileData1 := ppu.vram.Load(tileAddr + uint16(yInSprite%8))
