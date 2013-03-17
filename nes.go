@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
-	"os"
 	"unsafe"
 )
 
@@ -49,25 +49,45 @@ var keyMap = map[uint32]int{
 	sdl.K_RSHIFT: InputSelect,
 }
 
+const (
+	ScreenWidth  = 256
+	ScreenHeight = 240
+)
+
+var scale = 1
+
 func blit(pixels []Pixel, surface *sdl.Surface) {
-	var pixel uint32
 	surface.Lock()
-	pixelPtr := uintptr(surface.Pixels)
-	for _, p := range pixels {
-		*(*uint32)(unsafe.Pointer(pixelPtr)) = sdl.MapRGBA(surface.Format, p.R, p.G, p.B, 255)
-		pixelPtr += unsafe.Sizeof(pixel)
+	surfacePtr := uintptr(surface.Pixels)
+	for y := 0; y < ScreenHeight; y++ {
+		pixelIndex := y * ScreenWidth
+		for sy := 0; sy < scale; sy++ {
+			for x := 0; x < ScreenWidth; x++ {
+				pixel := pixels[pixelIndex]
+				pixelIndex++
+				color := sdl.MapRGBA(surface.Format, pixel.R, pixel.G, pixel.B, 255)
+				for sx := 0; sx < scale; sx++ {
+					*(*uint32)(unsafe.Pointer(surfacePtr)) = color
+					surfacePtr += unsafe.Sizeof(color)
+				}
+			}
+			pixelIndex -= ScreenWidth
+		}
 	}
 	surface.Unlock()
 	surface.Flip()
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Println("Usage: gomu [rom]")
+	flag.IntVar(&scale, "scale", 1, "scaling factor to apply to the screen size")
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		fmt.Println("Usage: gomu [--scale=<factor>] /path/to/rom")
 		return
 	}
 
-	rom, err := LoadRom(os.Args[1])
+	rom, err := LoadRom(flag.Arg(0))
 	if err != nil {
 		panic(fmt.Sprintf("Failed to load ROM: %v", err))
 	}
@@ -77,7 +97,7 @@ func main() {
 	}
 	defer sdl.Quit()
 
-	screen := sdl.SetVideoMode(256, 240, 32, sdl.SWSURFACE)
+	screen := sdl.SetVideoMode(ScreenWidth*scale, ScreenHeight*scale, 32, sdl.SWSURFACE)
 	if screen == nil {
 		panic(fmt.Sprintf("SDL screen failed to initialize: %v", sdl.GetError()))
 	}

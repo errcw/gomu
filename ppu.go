@@ -127,6 +127,7 @@ func (ppu *Ppu) prerenderScanlineCycle() {
 func (ppu *Ppu) renderScanlineCycle() {
 	switch ppu.cycle {
 	case 254:
+		// Better emulation would render these pixel-by-pixel to handle mid-scanline changes
 		if ppu.mask.showBackground() {
 			ppu.renderBackground()
 		}
