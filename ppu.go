@@ -256,13 +256,13 @@ func (ppu *Ppu) renderSprites() {
 		x := int(ppu.oam[oamBase+3])
 		h := ppu.ctrl.spriteHeight()
 
+		tile := uint16(ppu.oam[oamBase+1])
+
 		attr := ppu.oam[oamBase+2]
 		palette := attr & 3
 		behindBackground := (attr>>5)&1 == 1
 		flipX := (attr>>6)&1 == 1
 		flipY := (attr>>7)&1 == 1
-
-		tile := uint16(ppu.oam[oamBase+1])
 
 		// Sprites span (y, y+h]
 		if ppu.scanline <= y || ppu.scanline > y+h {
@@ -270,10 +270,8 @@ func (ppu *Ppu) renderSprites() {
 		}
 
 		yInSprite := ppu.scanline - y - 1
-
-		frameY := ppu.scanline
 		if flipY {
-			frameY = y + (h - 1) - yInSprite
+			yInSprite = h - yInSprite
 		}
 
 		// Read the sprite tile data
@@ -282,11 +280,10 @@ func (ppu *Ppu) renderSprites() {
 		case 8:
 			tileAddr = ppu.ctrl.spritePatternAddress() + (tile * 16)
 		case 16:
-			base := uint16(0x0)
+			tileAddr = (tile >> 1) * 32
 			if tile&1 == 1 {
-				base = 0x1000
+				tileAddr |= 0x1000
 			}
-			tileAddr = base | (tile>>1)*32
 			panic("8x16 sprites are unsupported")
 		}
 
@@ -295,16 +292,6 @@ func (ppu *Ppu) renderSprites() {
 
 		// Render the sprite
 		for p := 0; p < 8; p++ {
-			frameX := x + (7 - p)
-			if flipX {
-				frameX = x + p
-			}
-
-			// Skip rendering past the edge of the frame
-			if frameX > 255 {
-				continue
-			}
-
 			pixel := (tileData1 >> uint(p)) & 1
 			pixel |= ((tileData2 >> uint(p)) & 1) << 1
 
@@ -313,8 +300,15 @@ func (ppu *Ppu) renderSprites() {
 				continue
 			}
 
-			pixelIndex := frameY*256 + frameX
-			if pixelIndex >= len(ppu.pbuffer) {
+			frameX := x + (7 - p)
+			if flipX {
+				frameX = x + p
+			}
+
+			pixelIndex := ppu.scanline*256 + frameX
+
+			// Skip rendering outside the frame
+			if frameX > 255 || pixelIndex >= len(ppu.pbuffer) {
 				continue
 			}
 
