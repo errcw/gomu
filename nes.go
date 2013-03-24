@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl/audio"
+	"math"
 	"unsafe"
 )
 
@@ -78,6 +80,12 @@ func blit(pixels []Pixel, surface *sdl.Surface) {
 	surface.Flip()
 }
 
+func runAudio(ch chan []int16) {
+	for samples := <-ch; samples != nil; {
+		audio.SendAudio_int16(samples)
+	}
+}
+
 func main() {
 	flag.IntVar(&scale, "scale", 1, "scaling factor to apply to the screen size")
 	flag.Parse()
@@ -92,7 +100,7 @@ func main() {
 		panic(fmt.Sprintf("Failed to load ROM: %v", err))
 	}
 
-	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK) != 0 {
+	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		panic(fmt.Sprintf("SDL failed to initialize: %v", sdl.GetError()))
 	}
 	defer sdl.Quit()
@@ -102,6 +110,21 @@ func main() {
 		panic(fmt.Sprintf("SDL screen failed to initialize: %v", sdl.GetError()))
 	}
 	sdl.WM_SetCaption("Gomu", "")
+
+	audioSpec := &audio.AudioSpec{
+		Freq:     44100,
+		Format:   audio.AUDIO_S16SYS,
+		Channels: 1,
+		Samples:  4410,
+	}
+	if audio.OpenAudio(audioSpec, nil) != 0 {
+		panic(fmt.Sprintf("SDL audio failed to initialize: %v", sdl.GetError()))
+	}
+	defer audio.CloseAudio()
+	audio.PauseAudio(false)
+
+	audioChan := make(chan []int16, 2)
+	go runAudio(audioChan)
 
 	nes := NewNes(rom)
 
@@ -120,6 +143,7 @@ RUN:
 		}
 
 		nes.apu.Step(cycles)
+		// TODO forward audio to audioChan
 
 		// Pump events
 		event := sdl.Poll()
