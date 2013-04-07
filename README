@@ -1,0 +1,13 @@
+Gomu is a Nintendo Entertainment System (NES) emulator written in Go. It is
+minimally functional (e.g., Super Mario Brothers and Zelda are playable) but
+incomplete (e.g., missing audio, mappers, etc.).
+
+What (mostly) works:
+- CPU: official 6502 opcodes
+- PPU: basic functionality
+- Mappers: Nrom, Mmc1
+- Input
+
+Gomu relies on a local patch to Go-SDL that switches the event interface to use
+polling. Without polling Go-SDL drops events on Windows
+(https://github.com/0xe2-0x9a-0x9b/Go-SDL/issues/25).
